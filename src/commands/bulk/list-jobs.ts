@@ -1,5 +1,5 @@
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
-import { BulkJobInfo, listJobs } from '../../lib/bulkApiClient.js';
+import { BulkJobInfo, getJobInfo, listJobs } from '../../lib/bulkApiClient.js';
 
 const QUERY_OPERATIONS = new Set(['query', 'queryall']);
 
@@ -10,6 +10,7 @@ export default class BulkListJobs extends SfCommand<BulkJobInfo[]> {
 
   public static readonly examples = [
     '$ sf bulk list-jobs --target-org myorg',
+    '$ sf bulk list-jobs --target-org myorg --with-metrics',
     '$ sf bulk list-jobs --target-org myorg --object Contact',
     '$ sf bulk list-jobs --target-org myorg --job-type v2 --state JobComplete',
     '$ sf bulk list-jobs --target-org myorg --all-operations',
@@ -34,6 +35,10 @@ export default class BulkListJobs extends SfCommand<BulkJobInfo[]> {
       summary: 'Include query and queryAll jobs (excluded by default).',
       default: false,
     }),
+    'with-metrics': Flags.boolean({
+      summary: 'Fetch processed/failed record counts for each job (one extra API call per job).',
+      default: false,
+    }),
   };
 
   public async run(): Promise<BulkJobInfo[]> {
@@ -52,27 +57,47 @@ export default class BulkListJobs extends SfCommand<BulkJobInfo[]> {
       return true;
     });
 
-    if (!this.jsonEnabled()) {
-      if (filtered.length === 0) {
-        this.log('No jobs match the specified filters.');
-      } else {
-        this.table({
-          data: filtered.map((j) => ({
-            id: j.id,
-            date: j.createdDate?.slice(0, 10) ?? '',
-            type: j.apiVersion,
-            operation: j.operation,
-            object: j.object,
-            state: j.state,
-            failed: j.numberRecordsFailed != null ? String(j.numberRecordsFailed) : '',
-            processed: j.numberRecordsProcessed != null ? String(j.numberRecordsProcessed) : '',
-          })),
-          columns: ['id', 'date', 'type', 'operation', 'object', 'state', 'failed', 'processed'],
-        });
-      }
-      this.log(`\n${filtered.length} job(s)${all.length !== filtered.length ? ` (${all.length - filtered.length} filtered out)` : ''}`);
+    let result = filtered;
+
+    if (flags['with-metrics'] && filtered.length > 0) {
+      this.spinner.start(`Fetching metrics for ${filtered.length} job(s)`);
+      const details = await Promise.all(
+        filtered.map((j) =>
+          getJobInfo(conn, j.id, j.apiVersion).catch(() => null)
+        )
+      );
+      this.spinner.stop();
+      result = filtered.map((j, i) => ({
+        ...j,
+        numberRecordsFailed: details[i]?.numberRecordsFailed ?? j.numberRecordsFailed,
+        numberRecordsProcessed: details[i]?.numberRecordsProcessed ?? j.numberRecordsProcessed,
+      }));
     }
 
-    return filtered;
+    if (!this.jsonEnabled()) {
+      if (result.length === 0) {
+        this.log('No jobs match the specified filters.');
+      } else {
+        const rows = result.map((j) => ({
+          id: j.id,
+          date: j.createdDate?.slice(0, 10) ?? '',
+          type: j.apiVersion,
+          operation: j.operation,
+          object: j.object,
+          state: j.state,
+          failed: j.numberRecordsFailed != null ? String(j.numberRecordsFailed) : '—',
+          processed: j.numberRecordsProcessed != null ? String(j.numberRecordsProcessed) : '—',
+        }));
+
+        if (flags['with-metrics']) {
+          this.table({ data: rows, columns: ['id', 'date', 'type', 'operation', 'object', 'state', 'failed', 'processed'] });
+        } else {
+          this.table({ data: rows, columns: ['id', 'date', 'type', 'operation', 'object', 'state'] });
+        }
+      }
+      this.log(`\n${result.length} job(s)${all.length !== result.length ? ` (${all.length - result.length} filtered out)` : ''}`);
+    }
+
+    return result;
   }
 }
