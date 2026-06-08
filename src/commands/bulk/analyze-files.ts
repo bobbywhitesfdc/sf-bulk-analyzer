@@ -3,6 +3,8 @@ import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { FailureRecord } from '../../lib/bulkApiClient.js';
+import { loadClassifiers } from '../../lib/classifierLoader.js';
+import { buildClassifier } from '../../lib/errorClassifier.js';
 import { parseCsv } from '../../lib/csvParser.js';
 import { shouldSample, sample } from '../../lib/sampler.js';
 import { summarize, formatSummary } from '../../lib/summarizer.js';
@@ -24,6 +26,10 @@ export default class BulkAnalyzeFiles extends SfCommand<object> {
       summary: 'Failure % that triggers sampling.',
       default: 80,
     }),
+    classifiers: Flags.file({
+      summary: 'Path to a custom classifiers YAML file.',
+      default: undefined,
+    }),
   };
 
   public static readonly args = {
@@ -33,6 +39,7 @@ export default class BulkAnalyzeFiles extends SfCommand<object> {
   public async run(): Promise<object> {
     const { args, flags } = await this.parse(BulkAnalyzeFiles);
     const dir = args.dir;
+    const classifyError = buildClassifier(loadClassifiers(flags.classifiers));
 
     const entries = await readdir(dir);
     const csvFiles = entries.filter((f) => f.endsWith('.csv'));
@@ -51,7 +58,7 @@ export default class BulkAnalyzeFiles extends SfCommand<object> {
     }
 
     const jobId = dir.replace(/.*bulk_analysis_/, '').replace(/\/$/, '');
-    const summary = summarize(records, doSample);
+    const summary = summarize(records, doSample, classifyError);
 
     if (!this.jsonEnabled()) {
       this.log(formatSummary(summary, jobId));

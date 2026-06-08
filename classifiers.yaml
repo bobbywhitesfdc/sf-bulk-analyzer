@@ -1,0 +1,72 @@
+# sf-bulk-analyzer — error classifier definitions
+#
+# Each entry has a `code` (substring matched against the raw error) and a list
+# of `patterns`. Patterns are tested in order; the first match wins.
+#
+# Pattern fields:
+#   match    - JavaScript regex string (optional). Capture groups are referenced
+#              as {1}, {2}, ... in `signature`.
+#   signature - Output string for this match. Use {1}, {2} for capture groups.
+#
+# The last pattern in a code block may omit `match` to serve as a catch-all
+# fallback for that code.
+#
+# User overrides (~/.sf-bulk-analyzer/classifiers.yaml):
+#   - A code that exists here is fully replaced by the user's entry.
+#   - New codes in the user file are inserted before UNKNOWN.
+#   - UNKNOWN is always last.
+
+classifiers:
+  - code: INVALID_EMAIL_ADDRESS
+    patterns:
+      - signature: "INVALID_EMAIL_ADDRESS"
+
+  - code: REQUIRED_FIELD_MISSING
+    patterns:
+      - match: '\[([^\]]+)\]'
+        signature: "REQUIRED_FIELD_MISSING [{1}]"
+      - signature: "REQUIRED_FIELD_MISSING [?]"
+
+  - code: INVALID_FIELD
+    patterns:
+      - match: 'not found for field (\S+) in entity (\S+?)(?::.*)?$'
+        signature: "INVALID_FIELD: foreign key {1} not found in {2}"
+      - match: "No such column '([^']+)' on sobject of type (\\S+)"
+        signature: "INVALID_FIELD: no column '{1}' on {2}"
+      - match: '\[([^\]]+)\]'
+        signature: "INVALID_FIELD [{1}]"
+      - signature: "INVALID_FIELD [?]"
+
+  - code: DUPLICATE_VALUE
+    patterns:
+      - match: '\[([^\]]+)\]'
+        signature: "DUPLICATE_VALUE [{1}]"
+      - signature: "DUPLICATE_VALUE [?]"
+
+  - code: INVALID_VALUE
+    patterns:
+      - match: '^.*:(.+?) --'
+        signature: "INVALID_VALUE: {1}"
+      - signature: "INVALID_VALUE [?]"
+
+  - code: INVALID_REFERENCE
+    patterns:
+      - match: 'is invalid: (\S+)'
+        signature: "INVALID_REFERENCE: {1}"
+      - signature: "INVALID_REFERENCE [?]"
+
+  - code: FIELD_INTEGRITY_EXCEPTION
+    patterns:
+      - match: '\)\s*(.+)$'
+        signature: "FIELD_INTEGRITY_EXCEPTION: {1}"
+      - signature: "FIELD_INTEGRITY_EXCEPTION [?]"
+
+  - code: MISSING_ARGUMENT
+    patterns:
+      - match: 'MISSING_ARGUMENT:(.+?) not specified'
+        signature: "MISSING_ARGUMENT: {1}"
+      - signature: "MISSING_ARGUMENT [?]"
+
+  - code: UNKNOWN
+    patterns:
+      - signature: "UNKNOWN"

@@ -12,13 +12,15 @@
     "@oclif/plugin-help": "^6",
     "@oclif/plugin-plugins": "^5",
     "@salesforce/core": "^8.31.0",
-    "@salesforce/sf-plugins-core": "^12.2.24"
+    "@salesforce/sf-plugins-core": "^12.2.24",
+    "js-yaml": "^4.2.0"
   },
   "devDependencies": {
     "@eslint/compat": "^1",
     "@oclif/prettier-config": "^0.2.1",
     "@oclif/test": "^4",
     "@types/chai": "^4",
+    "@types/js-yaml": "^4.0.9",
     "@types/mocha": "^10",
     "@types/node": "^18",
     "@types/sinon": "^21.0.1",
@@ -38,6 +40,7 @@
   },
   "files": [
     "./bin",
+    "./classifiers.yaml",
     "./dist",
     "./skill",
     "./oclif.manifest.json"

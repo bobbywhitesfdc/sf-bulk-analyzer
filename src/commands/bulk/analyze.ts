@@ -1,6 +1,8 @@
 import { Args } from '@oclif/core';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { detectApiVersion, fetchFailures, getJobInfo } from '../../lib/bulkApiClient.js';
+import { loadClassifiers } from '../../lib/classifierLoader.js';
+import { buildClassifier } from '../../lib/errorClassifier.js';
 import { shouldSample, sample } from '../../lib/sampler.js';
 import { summarize, formatSummary } from '../../lib/summarizer.js';
 
@@ -12,6 +14,7 @@ export default class BulkAnalyze extends SfCommand<object> {
   public static readonly examples = [
     '$ sf bulk analyze 750xx0000000001 --target-org myorg',
     '$ sf bulk analyze 750xx0000000001 --target-org myorg --json',
+    '$ sf bulk analyze 750xx0000000001 --target-org myorg --classifiers ./my-classifiers.yaml',
   ];
 
   public static readonly flags = {
@@ -28,6 +31,10 @@ export default class BulkAnalyze extends SfCommand<object> {
       summary: 'Failure % of processed records that triggers sampling.',
       default: 80,
     }),
+    classifiers: Flags.file({
+      summary: 'Path to a custom classifiers YAML file.',
+      default: undefined,
+    }),
   };
 
   public static readonly args = {
@@ -38,6 +45,7 @@ export default class BulkAnalyze extends SfCommand<object> {
     const { args, flags } = await this.parse(BulkAnalyze);
     const jobId = args.jobId;
     const conn = flags['target-org'].getConnection();
+    const classifyError = buildClassifier(loadClassifiers(flags.classifiers));
 
     this.spinner.start(`Detecting API version for job ${jobId}`);
     const apiVersion = await detectApiVersion(conn, jobId);
@@ -58,7 +66,7 @@ export default class BulkAnalyze extends SfCommand<object> {
       this.warn(`Large failure set — analyzing stratified sample of ${records.length} records.`);
     }
 
-    const summary = summarize(records, doSample);
+    const summary = summarize(records, doSample, classifyError);
 
     if (!this.jsonEnabled()) {
       this.log(formatSummary(summary, jobId));

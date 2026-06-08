@@ -1,5 +1,8 @@
 import { expect } from 'chai';
-import { classifyError } from '../../src/lib/errorClassifier.js';
+import { loadClassifiers } from '../../src/lib/classifierLoader.js';
+import { buildClassifier } from '../../src/lib/errorClassifier.js';
+
+const classifyError = buildClassifier(loadClassifiers());
 
 describe('classifyError', () => {
   it('classifies INVALID_EMAIL_ADDRESS', () => {
@@ -12,7 +15,13 @@ describe('classifyError', () => {
     );
   });
 
-  it('classifies INVALID_FIELD with foreign key branch', () => {
+  it('classifies INVALID_FIELD foreign key branch', () => {
+    expect(
+      classifyError('INVALID_FIELD:Foreign key external ID: 0000031236 not found for field Producer_BP_Id__c in entity Contact:--'),
+    ).to.equal("INVALID_FIELD: foreign key Producer_BP_Id__c not found in Contact");
+  });
+
+  it('classifies INVALID_FIELD no-such-column branch', () => {
     expect(
       classifyError("INVALID_FIELD: No such column 'Foo__c' on sobject of type Contact"),
     ).to.equal("INVALID_FIELD: no column 'Foo__c' on Contact");
@@ -42,10 +51,10 @@ describe('classifyError', () => {
     );
   });
 
-  it('classifies UNKNOWN with custom field tokens', () => {
-    const result = classifyError('some error mentioning MyField__c in entity Account');
-    expect(result).to.include('MyField__c');
-    expect(result).to.include('entity:Account');
+  it('classifies MISSING_ARGUMENT', () => {
+    expect(classifyError('MISSING_ARGUMENT:Agency_BP_Id__c not specified:--')).to.equal(
+      'MISSING_ARGUMENT: Agency_BP_Id__c',
+    );
   });
 
   it('returns UNKNOWN for unrecognized error', () => {

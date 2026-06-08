@@ -1,5 +1,4 @@
 import { FailureRecord } from './bulkApiClient.js';
-import { classifyError } from './errorClassifier.js';
 
 export interface SignatureGroup {
   signature: string;
@@ -18,7 +17,11 @@ export interface Summary {
 const MAX_LEVEL2_ROWS = 20;
 const MAX_EXAMPLES_PER_SIG = 3;
 
-export function summarize(records: FailureRecord[], sampled: boolean): Summary {
+export function summarize(
+  records: FailureRecord[],
+  sampled: boolean,
+  classifyError: (error: string) => string,
+): Summary {
   const sigMap = new Map<string, SignatureGroup>();
 
   for (const rec of records) {
