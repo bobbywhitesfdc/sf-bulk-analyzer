@@ -39,6 +39,7 @@
   "files": [
     "./bin",
     "./dist",
+    "./skill",
     "./oclif.manifest.json"
   ],
   "homepage": "https://github.com/bobbywhitesfdc/sf-bulk-analyzer",
