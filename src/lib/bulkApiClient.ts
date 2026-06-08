@@ -6,8 +6,11 @@ export type ApiVersion = 'v1' | 'v2';
 export interface BulkJobInfo {
   id: string;
   apiVersion: ApiVersion;
+  jobType: string;        // 'V2Ingest' | 'Classic'
+  operation: string;      // 'insert' | 'upsert' | 'delete' | 'query' | 'queryAll' | ...
   object: string;
   state: string;
+  createdDate: string;
   numberRecordsFailed: number;
   numberRecordsProcessed: number;
 }
@@ -41,26 +44,18 @@ export async function getJobInfo(
   jobId: string,
   apiVersion: ApiVersion,
 ): Promise<BulkJobInfo> {
+  type RawJob = {
+    id: string; jobType: string; operation: string; object: string;
+    state: string; createdDate: string;
+    numberRecordsFailed: number; numberRecordsProcessed: number;
+  };
   if (apiVersion === 'v2') {
     const url = `${conn.instanceUrl}/services/data/v${conn.version}/jobs/ingest/${jobId}`;
-    const data = await conn.requestGet<{
-      id: string;
-      object: string;
-      state: string;
-      numberRecordsFailed: number;
-      numberRecordsProcessed: number;
-    }>(url);
+    const data = await conn.requestGet<RawJob>(url);
     return { ...data, apiVersion: 'v2' };
   }
-  // v1
   const url = `${conn.instanceUrl}/services/async/${conn.version}/job/${jobId}`;
-  const data = await conn.requestGet<{
-    id: string;
-    object: string;
-    state: string;
-    numberRecordsFailed: number;
-    numberRecordsProcessed: number;
-  }>(url);
+  const data = await conn.requestGet<RawJob>(url);
   return { ...data, apiVersion: 'v1' };
 }
 
@@ -121,7 +116,10 @@ async function fetchFailuresV1(
 
 export async function listJobs(conn: Connection): Promise<BulkJobInfo[]> {
   const url = `${conn.instanceUrl}/services/data/v${conn.version}/jobs/ingest`;
-  const data = await conn.requestGet<{ records: BulkJobInfo[] }>(url);
-  return data.records ?? [];
+  const data = await conn.requestGet<{ records: Array<BulkJobInfo & { jobType: string }> }>(url);
+  return (data.records ?? []).map((r) => ({
+    ...r,
+    apiVersion: r.jobType === 'V2Ingest' ? 'v2' : 'v1',
+  }));
 }
 
