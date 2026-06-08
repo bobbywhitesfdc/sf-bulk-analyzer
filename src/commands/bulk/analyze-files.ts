@@ -1,14 +1,11 @@
 import { Args } from '@oclif/core';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
-import { Messages } from '@salesforce/core';
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { FailureRecord } from '../../lib/bulkApiClient.js';
 import { parseCsv } from '../../lib/csvParser.js';
 import { shouldSample, sample } from '../../lib/sampler.js';
 import { summarize, formatSummary } from '../../lib/summarizer.js';
-
-Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 
 export default class BulkAnalyzeFiles extends SfCommand<object> {
   public static readonly summary = 'Analyze locally downloaded Bulk API failure CSVs without an org connection.';

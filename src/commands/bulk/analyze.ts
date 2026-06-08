@@ -1,11 +1,8 @@
 import { Args } from '@oclif/core';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
-import { Messages } from '@salesforce/core';
 import { detectApiVersion, fetchFailures, getJobInfo } from '../../lib/bulkApiClient.js';
 import { shouldSample, sample } from '../../lib/sampler.js';
 import { summarize, formatSummary } from '../../lib/summarizer.js';
-
-Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 
 export default class BulkAnalyze extends SfCommand<object> {
   public static readonly summary = 'Analyze failures for a Bulk API job.';

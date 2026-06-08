@@ -1,8 +1,5 @@
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
-import { Messages } from '@salesforce/core';
 import { listJobs } from '../../lib/bulkApiClient.js';
-
-Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 
 export default class BulkListJobs extends SfCommand<object[]> {
   public static readonly summary = 'List Bulk API v2 ingest jobs for an org.';

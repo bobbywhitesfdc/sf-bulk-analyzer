@@ -1,12 +1,9 @@
 import { SfCommand } from '@salesforce/sf-plugins-core';
-import { Messages } from '@salesforce/core';
 import { copyFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
-
-Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 
 const SKILL_DEST = join(homedir(), '.claude', 'skills', 'sf-bulk-analyzer');
 
