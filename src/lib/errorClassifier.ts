@@ -11,6 +11,7 @@ export function classifyError(rawError: string): string {
   if (rawError.includes('INVALID_VALUE')) return classifyInvalidValue(rawError);
   if (rawError.includes('INVALID_REFERENCE')) return classifyInvalidReference(rawError);
   if (rawError.includes('FIELD_INTEGRITY_EXCEPTION')) return classifyFieldIntegrityException(rawError);
+  if (rawError.includes('MISSING_ARGUMENT')) return classifyMissingArgument(rawError);
 
   return classifyUnknown(rawError);
 }
@@ -26,13 +27,24 @@ function classifyRequiredFieldMissing(msg: string): string {
 }
 
 function classifyInvalidField(msg: string): string {
-  // Two branches: foreign key reference vs. invalid field name
-  const fkMatch = /No such column '([^']+)' on sobject of type (\S+)/.exec(msg);
-  if (fkMatch) return `INVALID_FIELD: no column '${fkMatch[1]}' on ${fkMatch[2]}`;
+  // Foreign key external ID not found: "not found for field X in entity Y"
+  const fkMatch = /not found for field (\S+) in entity (\S+)/.exec(msg);
+  if (fkMatch) return `INVALID_FIELD: foreign key ${fkMatch[1]} not found in ${fkMatch[2].replace(/:.*$/, '')}`;
+
+  // No such column branch
+  const noColMatch = /No such column '([^']+)' on sobject of type (\S+)/.exec(msg);
+  if (noColMatch) return `INVALID_FIELD: no column '${noColMatch[1]}' on ${noColMatch[2]}`;
 
   const fieldMatch = /\[([^\]]+)\]/.exec(msg);
   const field = fieldMatch ? fieldMatch[1] : '?';
   return `INVALID_FIELD [${field}]`;
+}
+
+function classifyMissingArgument(msg: string): string {
+  // "FieldName not specified"
+  const match = /^([^:]+?) not specified/.exec(msg.replace(/^MISSING_ARGUMENT:/, '').trim());
+  const field = match ? match[1].trim() : '?';
+  return `MISSING_ARGUMENT: ${field}`;
 }
 
 function classifyDuplicateValue(msg: string): string {

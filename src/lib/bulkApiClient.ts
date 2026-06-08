@@ -27,8 +27,12 @@ export async function detectApiVersion(
   jobId: string,
 ): Promise<ApiVersion> {
   const url = `${conn.instanceUrl}/services/data/v${conn.version}/jobs/ingest/${jobId}`;
-  const response = await conn.requestGet<{ jobType?: string }>(url);
-  if (response.jobType === 'V2Ingest') return 'v2';
+  try {
+    const response = await conn.requestGet<{ jobType?: string }>(url);
+    if (response.jobType === 'V2Ingest') return 'v2';
+  } catch {
+    // 404 means job not found on v2 endpoint — fall through to v1
+  }
   return 'v1';
 }
 
@@ -71,12 +75,21 @@ export async function fetchFailures(
   return fetchFailuresV1(conn, jobId);
 }
 
+async function fetchCsv(conn: Connection, url: string): Promise<string> {
+  const token = conn.accessToken;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}`, Accept: 'text/csv' },
+  });
+  if (!res.ok) throw new Error(`CSV fetch failed: ${res.status} ${res.statusText} — ${url}`);
+  return res.text();
+}
+
 async function fetchFailuresV2(
   conn: Connection,
   jobId: string,
 ): Promise<FailureRecord[]> {
   const url = `${conn.instanceUrl}/services/data/v${conn.version}/jobs/ingest/${jobId}/failedResults`;
-  const csv = await conn.requestGet<string>(url);
+  const csv = await fetchCsv(conn, url);
   return parseCsv(csv);
 }
 
@@ -94,16 +107,12 @@ async function fetchFailuresV1(
   const failures: FailureRecord[] = [];
   for (const batch of batches) {
     const resultUrl = `${conn.instanceUrl}/services/async/${conn.version}/job/${jobId}/batch/${batch.id}/result`;
-    const csv = await conn.requestGet<string>(resultUrl);
+    const csv = await fetchCsv(conn, resultUrl);
     const rows = parseCsv(csv);
     // v1 result CSVs include a "Success" column; keep only failures.
     for (const row of rows) {
       if (row.fields['Success'] === 'false') {
-        failures.push({
-          id: row.id,
-          error: row.error,
-          fields: row.fields,
-        });
+        failures.push({ id: row.id, error: row.error, fields: row.fields });
       }
     }
   }
