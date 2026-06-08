@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "author": "Bobby White",
   "bin": {
-    "sf-bulk-analyzer": "./bin/run.js"
+    "sf-bulk-analyzer": "bin/run.js"
   },
   "bugs": "https://github.com/bobbywhitesfdc/sf-bulk-analyzer/issues",
   "dependencies": {
@@ -67,7 +67,10 @@
       }
     }
   },
-  "repository": "https://github.com/bobbywhitesfdc/sf-bulk-analyzer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bobbywhitesfdc/sf-bulk-analyzer.git"
+  },
   "scripts": {
     "build": "shx rm -rf dist && tsc -b",
     "lint": "eslint",
