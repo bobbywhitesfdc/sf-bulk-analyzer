@@ -57,6 +57,12 @@ describe('classifyError', () => {
     );
   });
 
+  it('classifies INVALID_FIELD_FOR_INSERT_UPDATE without being caught by INVALID_FIELD', () => {
+    expect(
+      classifyError('INVALID_FIELD_FOR_INSERT_UPDATE:Cannot specify any additional fields when marrying or separating a Person-Account:--'),
+    ).to.equal('INVALID_FIELD_FOR_INSERT_UPDATE: Person<->Business Account RecordType change — cannot update additional fields in same operation');
+  });
+
   it('returns UNKNOWN for unrecognized error', () => {
     expect(classifyError('some random message')).to.equal('UNKNOWN');
   });

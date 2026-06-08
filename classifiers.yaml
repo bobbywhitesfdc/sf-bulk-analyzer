@@ -27,6 +27,14 @@ classifiers:
         signature: "REQUIRED_FIELD_MISSING [{1}]"
       - signature: "REQUIRED_FIELD_MISSING [?]"
 
+  - code: INVALID_FIELD_FOR_INSERT_UPDATE
+    patterns:
+      - match: 'marrying or separating a Person-Account'
+        signature: "INVALID_FIELD_FOR_INSERT_UPDATE: Person<->Business Account RecordType change — cannot update additional fields in same operation"
+      - match: 'INVALID_FIELD_FOR_INSERT_UPDATE:([^:]+)'
+        signature: "INVALID_FIELD_FOR_INSERT_UPDATE: {1}"
+      - signature: "INVALID_FIELD_FOR_INSERT_UPDATE [?]"
+
   - code: INVALID_FIELD
     patterns:
       - match: 'not found for field (\S+) in entity (\S+?)(?::.*)?$'
