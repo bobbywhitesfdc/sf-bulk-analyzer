@@ -140,7 +140,7 @@ Analyze failures for a Bulk API job.
 
 ```
 USAGE
-  $ sf bulk analyze JOBID -o <value> [--json] [--output-dir <value>]
+  $ sf-bulk-analyzer bulk analyze JOBID -o <value> [--json] [--flags-dir <value>] [--output-dir <value>]
     [--sample-size <value>] [--sample-threshold <value>] [--classifiers <value>]
 
 ARGUMENTS
@@ -154,7 +154,20 @@ FLAGS
       --sample-threshold=<value>  [default: 80] Failure % of processed records that triggers sampling.
 
 GLOBAL FLAGS
-  --json  Format output as json.
+  --flags-dir=<value>  Import flag values from a directory.
+  --json               Format output as json.
+
+DESCRIPTION
+  Analyze failures for a Bulk API job.
+
+  Fetches failed records for a Bulk API v1 or v2 job and summarizes errors by normalized signature.
+
+EXAMPLES
+  $ sf bulk analyze 750xx0000000001 --target-org myorg
+
+  $ sf bulk analyze 750xx0000000001 --target-org myorg --json
+
+  $ sf bulk analyze 750xx0000000001 --target-org myorg --classifiers ./my-classifiers.yaml
 ```
 
 _See code: [src/commands/bulk/analyze.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.1.1/src/commands/bulk/analyze.ts)_
@@ -165,7 +178,8 @@ Analyze locally downloaded Bulk API failure CSVs without an org connection.
 
 ```
 USAGE
-  $ sf bulk analyze-files DIR [--json] [--sample-size <value>] [--sample-threshold <value>] [--classifiers <value>]
+  $ sf-bulk-analyzer bulk analyze-files DIR [--json] [--flags-dir <value>] [--sample-size <value>] [--sample-threshold
+    <value>] [--classifiers <value>]
 
 ARGUMENTS
   DIR  Directory containing failure CSV files.
@@ -176,21 +190,36 @@ FLAGS
   --sample-threshold=<value>  [default: 80] Failure % that triggers sampling.
 
 GLOBAL FLAGS
-  --json  Format output as json.
+  --flags-dir=<value>  Import flag values from a directory.
+  --json               Format output as json.
+
+EXAMPLES
+  $ sf bulk analyze-files ./bulk_analysis_750xx0000000001
+
+  $ sf bulk analyze-files ./bulk_analysis_750xx0000000001 --json
 ```
 
 _See code: [src/commands/bulk/analyze-files.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.1.1/src/commands/bulk/analyze-files.ts)_
 
 ## `sf-bulk-analyzer bulk install-skill`
 
-Install the bundled Claude Code skill to `~/.claude/skills/`.
+Install the sf-bulk-analyzer Claude Code skill to ~/.claude/skills/.
 
 ```
 USAGE
-  $ sf bulk install-skill [--json]
+  $ sf-bulk-analyzer bulk install-skill [--json] [--flags-dir <value>]
 
 GLOBAL FLAGS
-  --json  Format output as json.
+  --flags-dir=<value>  Import flag values from a directory.
+  --json               Format output as json.
+
+DESCRIPTION
+  Install the sf-bulk-analyzer Claude Code skill to ~/.claude/skills/.
+
+  Copies the bundled SKILL.md to ~/.claude/skills/sf-bulk-analyzer/ so Claude Code can use it as a skill.
+
+EXAMPLES
+  $ sf bulk install-skill
 ```
 
 _See code: [src/commands/bulk/install-skill.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.1.1/src/commands/bulk/install-skill.ts)_
@@ -201,19 +230,39 @@ List Bulk API jobs for an org.
 
 ```
 USAGE
-  $ sf bulk list-jobs -o <value> [--json] [-b <value>] [--job-type v1|v2]
-    [-s <value>] [--all-operations] [--with-metrics]
+  $ sf-bulk-analyzer bulk list-jobs -o <value> [--json] [--flags-dir <value>] [-b <value>] [--job-type v1|v2] [-s
+    <value>] [--all-operations] [--with-metrics]
 
 FLAGS
   -b, --object=<value>      Filter by Salesforce object name (case-insensitive).
   -o, --target-org=<value>  (required) Org alias or username.
   -s, --state=<value>       Filter by job state (e.g. JobComplete, Failed, Closed).
       --all-operations      Include query and queryAll jobs (excluded by default).
-      --job-type=<option>   Filter by API version. <options: v1|v2>
-      --with-metrics        Fetch processed/failed record counts for each job.
+      --job-type=<option>   Filter by API version.
+                            <options: v1|v2>
+      --with-metrics        Fetch processed/failed record counts for each job (one extra API call per job).
 
 GLOBAL FLAGS
-  --json  Format output as json.
+  --flags-dir=<value>  Import flag values from a directory.
+  --json               Format output as json.
+
+DESCRIPTION
+  List Bulk API jobs for an org.
+
+  Lists Bulk API jobs. Query and queryAll operations are excluded by default — use --all-operations to include them.
+
+EXAMPLES
+  $ sf bulk list-jobs --target-org myorg
+
+  $ sf bulk list-jobs --target-org myorg --with-metrics
+
+  $ sf bulk list-jobs --target-org myorg --object Contact
+
+  $ sf bulk list-jobs --target-org myorg --job-type v2 --state JobComplete
+
+  $ sf bulk list-jobs --target-org myorg --all-operations
+
+  $ sf bulk list-jobs --target-org myorg --json
 ```
 
 _See code: [src/commands/bulk/list-jobs.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.1.1/src/commands/bulk/list-jobs.ts)_
@@ -226,8 +275,14 @@ Display help for sf-bulk-analyzer.
 USAGE
   $ sf-bulk-analyzer help [COMMAND...] [-n]
 
+ARGUMENTS
+  [COMMAND...]  Command to show help for.
+
 FLAGS
   -n, --nested-commands  Include all nested commands in the output.
+
+DESCRIPTION
+  Display help for sf-bulk-analyzer.
 ```
 
 _See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/6.2.50/src/commands/help.ts)_
