@@ -1,0 +1,118 @@
+import { Connection } from '@salesforce/core';
+import { parseCsv } from './csvParser.js';
+
+export type ApiVersion = 'v1' | 'v2';
+
+export interface BulkJobInfo {
+  id: string;
+  apiVersion: ApiVersion;
+  object: string;
+  state: string;
+  numberRecordsFailed: number;
+  numberRecordsProcessed: number;
+}
+
+export interface FailureRecord {
+  id: string;
+  error: string;
+  fields: Record<string, string>;
+}
+
+/**
+ * Probe the v2 endpoint first; fall through to v1 if not found.
+ * Mirrors the detection logic in analyze_bulk_job.sh.
+ */
+export async function detectApiVersion(
+  conn: Connection,
+  jobId: string,
+): Promise<ApiVersion> {
+  const url = `${conn.instanceUrl}/services/data/v${conn.version}/jobs/ingest/${jobId}`;
+  const response = await conn.requestGet<{ jobType?: string }>(url);
+  if (response.jobType === 'V2Ingest') return 'v2';
+  return 'v1';
+}
+
+export async function getJobInfo(
+  conn: Connection,
+  jobId: string,
+  apiVersion: ApiVersion,
+): Promise<BulkJobInfo> {
+  if (apiVersion === 'v2') {
+    const url = `${conn.instanceUrl}/services/data/v${conn.version}/jobs/ingest/${jobId}`;
+    const data = await conn.requestGet<{
+      id: string;
+      object: string;
+      state: string;
+      numberRecordsFailed: number;
+      numberRecordsProcessed: number;
+    }>(url);
+    return { ...data, apiVersion: 'v2' };
+  }
+  // v1
+  const url = `${conn.instanceUrl}/services/async/${conn.version}/job/${jobId}`;
+  const data = await conn.requestGet<{
+    id: string;
+    object: string;
+    state: string;
+    numberRecordsFailed: number;
+    numberRecordsProcessed: number;
+  }>(url);
+  return { ...data, apiVersion: 'v1' };
+}
+
+export async function fetchFailures(
+  conn: Connection,
+  jobId: string,
+  apiVersion: ApiVersion,
+): Promise<FailureRecord[]> {
+  if (apiVersion === 'v2') {
+    return fetchFailuresV2(conn, jobId);
+  }
+  return fetchFailuresV1(conn, jobId);
+}
+
+async function fetchFailuresV2(
+  conn: Connection,
+  jobId: string,
+): Promise<FailureRecord[]> {
+  const url = `${conn.instanceUrl}/services/data/v${conn.version}/jobs/ingest/${jobId}/failedResults`;
+  const csv = await conn.requestGet<string>(url);
+  return parseCsv(csv);
+}
+
+async function fetchFailuresV1(
+  conn: Connection,
+  jobId: string,
+): Promise<FailureRecord[]> {
+  // Enumerate batches, then download each batch's result CSV and filter failures.
+  const batchListUrl = `${conn.instanceUrl}/services/async/${conn.version}/job/${jobId}/batch`;
+  const batchList = await conn.requestGet<{ batchInfo: Array<{ id: string }> }>(batchListUrl);
+  const batches = Array.isArray(batchList.batchInfo)
+    ? batchList.batchInfo
+    : [batchList.batchInfo];
+
+  const failures: FailureRecord[] = [];
+  for (const batch of batches) {
+    const resultUrl = `${conn.instanceUrl}/services/async/${conn.version}/job/${jobId}/batch/${batch.id}/result`;
+    const csv = await conn.requestGet<string>(resultUrl);
+    const rows = parseCsv(csv);
+    // v1 result CSVs include a "Success" column; keep only failures.
+    for (const row of rows) {
+      if (row.fields['Success'] === 'false') {
+        failures.push({
+          id: row.id,
+          error: row.error,
+          fields: row.fields,
+        });
+      }
+    }
+  }
+  return failures;
+}
+
+export async function listJobs(conn: Connection): Promise<BulkJobInfo[]> {
+  const url = `${conn.instanceUrl}/services/data/v${conn.version}/jobs/ingest`;
+  const data = await conn.requestGet<{ records: BulkJobInfo[] }>(url);
+  return data.records ?? [];
+}
+

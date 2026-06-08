@@ -1,0 +1,1 @@
+{"root":["./src/index.ts","./src/commands/bulk/analyze-files.ts","./src/commands/bulk/analyze.ts","./src/commands/bulk/list-jobs.ts","./src/lib/bulkapiclient.ts","./src/lib/csvparser.ts","./src/lib/errorclassifier.ts","./src/lib/sampler.ts","./src/lib/summarizer.ts"],"version":"5.9.3"}
