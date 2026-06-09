@@ -69,6 +69,12 @@ classifiers:
         signature: "FIELD_INTEGRITY_EXCEPTION: {1}"
       - signature: "FIELD_INTEGRITY_EXCEPTION [?]"
 
+  - code: MALFORMED_ID
+    patterns:
+      - match: 'MALFORMED_ID:(\w+) ID: id value of incorrect type: [^:]+:(\w+)'
+        signature: "MAPPING_ERROR: {2} - lookup field of type Id received raw ExternalId value; map via {1}.<ExternalID field> instead"
+      - signature: "MALFORMED_ID [?]"
+
   - code: MISSING_ARGUMENT
     patterns:
       - match: 'MISSING_ARGUMENT:(.+?) not specified'
