@@ -146,7 +146,7 @@ Analyze failures for a Bulk API job.
 ```
 USAGE
   $ sf-bulk-analyzer bulk analyze JOBID -o <value> [--json] [--flags-dir <value>] [--output-dir <value>]
-    [--sample-size <value>] [--sample-threshold <value>] [--classifiers <value>]
+    [--sample-size <value>] [--sample-threshold <value>] [--classifiers <value>] [--concurrency <value>]
 
 ARGUMENTS
   JOBID  Bulk API job ID to analyze.
@@ -154,6 +154,7 @@ ARGUMENTS
 FLAGS
   -o, --target-org=<value>        (required) Org alias or username.
       --classifiers=<value>       Path to a custom classifiers YAML file.
+      --concurrency=<value>       [default: 15] Number of parallel batch workers for large jobs.
       --output-dir=<value>        Write analysis files to this directory.
       --sample-size=<value>       [default: 500] Max records to include in sample.
       --sample-threshold=<value>  [default: 80] Failure % of processed records that triggers sampling.
@@ -175,7 +176,7 @@ EXAMPLES
   $ sf bulk analyze 750xx0000000001 --target-org myorg --classifiers ./my-classifiers.yaml
 ```
 
-_See code: [src/commands/bulk/analyze.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.1.1/src/commands/bulk/analyze.ts)_
+_See code: [src/commands/bulk/analyze.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.1.2/src/commands/bulk/analyze.ts)_
 
 ## `sf-bulk-analyzer bulk analyze-files DIR`
 
@@ -204,7 +205,7 @@ EXAMPLES
   $ sf bulk analyze-files ./bulk_analysis_750xx0000000001 --json
 ```
 
-_See code: [src/commands/bulk/analyze-files.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.1.1/src/commands/bulk/analyze-files.ts)_
+_See code: [src/commands/bulk/analyze-files.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.1.2/src/commands/bulk/analyze-files.ts)_
 
 ## `sf-bulk-analyzer bulk install-skill`
 
@@ -227,7 +228,7 @@ EXAMPLES
   $ sf bulk install-skill
 ```
 
-_See code: [src/commands/bulk/install-skill.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.1.1/src/commands/bulk/install-skill.ts)_
+_See code: [src/commands/bulk/install-skill.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.1.2/src/commands/bulk/install-skill.ts)_
 
 ## `sf-bulk-analyzer bulk list-jobs`
 
@@ -270,7 +271,7 @@ EXAMPLES
   $ sf bulk list-jobs --target-org myorg --json
 ```
 
-_See code: [src/commands/bulk/list-jobs.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.1.1/src/commands/bulk/list-jobs.ts)_
+_See code: [src/commands/bulk/list-jobs.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.1.2/src/commands/bulk/list-jobs.ts)_
 
 ## `sf-bulk-analyzer help [COMMAND]`
 
