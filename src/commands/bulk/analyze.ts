@@ -79,7 +79,7 @@ export default class BulkAnalyze extends SfCommand<object> {
     const summary = summarize(records, doSample, classifyError);
 
     if (!this.jsonEnabled()) {
-      this.log(formatSummary(summary, jobId));
+      this.log(formatSummary(summary, jobId, jobInfo));
     }
 
     return { jobId, apiVersion, jobInfo, summary };

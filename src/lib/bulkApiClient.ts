@@ -10,6 +10,7 @@ export interface BulkJobInfo {
   jobType: string;        // 'V2Ingest' | 'Classic'
   operation: string;      // 'insert' | 'upsert' | 'delete' | 'query' | 'queryAll' | ...
   object: string;
+  externalIdFieldName?: string;
   state: string;
   createdDate: string;
   numberRecordsFailed: number;
@@ -66,6 +67,7 @@ export async function getJobInfo(
     jobType: 'Classic',
     operation: xmlValue(xml, 'operation'),
     object: xmlValue(xml, 'object'),
+    externalIdFieldName: xmlValue(xml, 'externalIdFieldName') || undefined,
     state: xmlValue(xml, 'state'),
     createdDate: xmlValue(xml, 'createdDate'),
     numberRecordsFailed: parseInt(xmlValue(xml, 'numberRecordsFailed') || '0', 10),

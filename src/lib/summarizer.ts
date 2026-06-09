@@ -1,4 +1,4 @@
-import { FailureRecord } from './bulkApiClient.js';
+import { BulkJobInfo, FailureRecord } from './bulkApiClient.js';
 
 export interface SignatureGroup {
   signature: string;
@@ -47,9 +47,13 @@ export function summarize(
   };
 }
 
-export function formatSummary(summary: Summary, jobId: string): string {
+export function formatSummary(summary: Summary, jobId: string, jobInfo?: Pick<BulkJobInfo, 'object' | 'operation' | 'externalIdFieldName'>): string {
   const lines: string[] = [];
   lines.push(`=== Bulk Job ${jobId} — Failure Analysis ===`);
+  if (jobInfo) {
+    const upsertField = jobInfo.operation === 'upsert' && jobInfo.externalIdFieldName ? ` (${jobInfo.externalIdFieldName})` : '';
+    lines.push(`Object: ${jobInfo.object}    Operation: ${jobInfo.operation}${upsertField}`);
+  }
   lines.push(`Total failures: ${summary.totalFailures}${summary.sampled ? ` (sampled ${summary.sampleSize})` : ''}`);
   lines.push('');
   lines.push('--- Level 1: By Error Signature ---');
