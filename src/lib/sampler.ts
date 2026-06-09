@@ -7,9 +7,10 @@ export function shouldSample(
   failureCount: number,
   processedCount: number,
   thresholdPct = DEFAULT_SAMPLE_THRESHOLD_PCT,
+  sampleSize = DEFAULT_SAMPLE_SIZE,
 ): boolean {
   if (failureCount > 10_000) return true;
-  if (processedCount > 0 && (failureCount / processedCount) * 100 > thresholdPct) return true;
+  if (failureCount > sampleSize && processedCount > 0 && (failureCount / processedCount) * 100 > thresholdPct) return true;
   return false;
 }
 

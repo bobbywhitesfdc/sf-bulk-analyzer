@@ -61,6 +61,9 @@ sf bulk analyze 750dy00000ZlJW5 --target-org myorg
 
 # Machine-readable JSON (for scripting or the Claude skill)
 sf bulk analyze 750dy00000ZlJW5 --target-org myorg --json
+
+# Tune the worker pool for large V1 jobs (default 15)
+sf bulk analyze 750dy00000ZlJW5 --target-org myorg --concurrency 25
 ```
 
 Output:
@@ -82,7 +85,9 @@ Total failures: 500 (sampled 500)
 
 **Level 2** shows raw messages for spot-checking.
 
-If failures exceed 10,000 records or 80% of processed records, a stratified sample of 500 rows is analyzed instead of the full set.
+Sampling kicks in when failures exceed 10,000 records OR exceed the `--sample-threshold` percentage (default 80%) of processed records AND the failure count is large enough to warrant it. A stratified sample of `--sample-size` rows (default 500) is analyzed instead of the full set.
+
+**Bulk API v1 and v2 are both supported.** The plugin auto-detects which API version a job used. For v1 jobs, batch result CSVs are downloaded in parallel using a worker pool (controlled by `--concurrency`).
 
 ### Analyze local CSV files (no org connection)
 

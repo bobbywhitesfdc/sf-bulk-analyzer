@@ -35,6 +35,10 @@ export default class BulkAnalyze extends SfCommand<object> {
       summary: 'Path to a custom classifiers YAML file.',
       default: undefined,
     }),
+    concurrency: Flags.integer({
+      summary: 'Number of parallel batch workers for large jobs.',
+      default: 15,
+    }),
   };
 
   public static readonly args = {
@@ -53,13 +57,19 @@ export default class BulkAnalyze extends SfCommand<object> {
     this.spinner.stop(`${apiVersion} — ${jobInfo.numberRecordsFailed} failures`);
 
     this.spinner.start('Fetching failure records');
-    let records = await fetchFailures(conn, jobId, apiVersion);
+    let records = await fetchFailures(conn, jobId, apiVersion, {
+      concurrency: flags.concurrency,
+      onProgress: (fetched) => {
+        this.spinner.status = `${fetched} records fetched`;
+      },
+    });
     this.spinner.stop(`${records.length} records fetched`);
 
     const doSample = shouldSample(
       records.length,
       jobInfo.numberRecordsProcessed,
       flags['sample-threshold'],
+      flags['sample-size'],
     );
     if (doSample) {
       records = sample(records, flags['sample-size']);
