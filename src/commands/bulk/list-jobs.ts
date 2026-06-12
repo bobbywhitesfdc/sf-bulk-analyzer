@@ -71,6 +71,7 @@ export default class BulkListJobs extends SfCommand<BulkJobInfo[]> {
         ...j,
         numberRecordsFailed: details[i]?.numberRecordsFailed ?? j.numberRecordsFailed,
         numberRecordsProcessed: details[i]?.numberRecordsProcessed ?? j.numberRecordsProcessed,
+        errorMessage: details[i]?.errorMessage ?? j.errorMessage,
       }));
     }
 
@@ -93,6 +94,14 @@ export default class BulkListJobs extends SfCommand<BulkJobInfo[]> {
           this.table({ data: rows, columns: ['id', 'date', 'type', 'operation', 'object', 'state', 'failed', 'processed'] });
         } else {
           this.table({ data: rows, columns: ['id', 'date', 'type', 'operation', 'object', 'state'] });
+        }
+
+        const failedWithError = result.filter((j) => j.state === 'Failed' && j.errorMessage);
+        if (failedWithError.length > 0) {
+          this.log('\n--- Failed Job Errors ---');
+          for (const j of failedWithError) {
+            this.log(`  ${j.id}: ${j.errorMessage}`);
+          }
         }
       }
       this.log(`\n${result.length} job(s)${all.length !== result.length ? ` (${all.length - result.length} filtered out)` : ''}`);

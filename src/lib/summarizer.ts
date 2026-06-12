@@ -47,12 +47,16 @@ export function summarize(
   };
 }
 
-export function formatSummary(summary: Summary, jobId: string, jobInfo?: Pick<BulkJobInfo, 'object' | 'operation' | 'externalIdFieldName'>): string {
+export function formatSummary(summary: Summary, jobId: string, jobInfo?: Pick<BulkJobInfo, 'object' | 'operation' | 'externalIdFieldName' | 'state' | 'errorMessage'>): string {
   const lines: string[] = [];
   lines.push(`=== Bulk Job ${jobId} — Failure Analysis ===`);
   if (jobInfo) {
     const upsertField = jobInfo.operation === 'upsert' && jobInfo.externalIdFieldName ? ` (${jobInfo.externalIdFieldName})` : '';
     lines.push(`Object: ${jobInfo.object}    Operation: ${jobInfo.operation}${upsertField}`);
+    lines.push(`State: ${jobInfo.state}`);
+    if (jobInfo.errorMessage) {
+      lines.push(`Job Error: ${jobInfo.errorMessage}`);
+    }
   }
   lines.push(`Total failures: ${summary.totalFailures}${summary.sampled ? ` (sampled ${summary.sampleSize})` : ''}`);
   lines.push('');

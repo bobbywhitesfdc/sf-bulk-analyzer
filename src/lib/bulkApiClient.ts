@@ -12,6 +12,7 @@ export interface BulkJobInfo {
   object: string;
   externalIdFieldName?: string;
   state: string;
+  errorMessage?: string;
   createdDate: string;
   numberRecordsFailed: number;
   numberRecordsProcessed: number;
@@ -52,7 +53,7 @@ export async function getJobInfo(
 ): Promise<BulkJobInfo> {
   type RawJob = {
     id: string; jobType: string; operation: string; object: string;
-    state: string; createdDate: string;
+    state: string; errorMessage?: string; createdDate: string;
     numberRecordsFailed: number; numberRecordsProcessed: number;
   };
   if (apiVersion === 'v2') {
@@ -69,6 +70,7 @@ export async function getJobInfo(
     object: xmlValue(xml, 'object'),
     externalIdFieldName: xmlValue(xml, 'externalIdFieldName') || undefined,
     state: xmlValue(xml, 'state'),
+    errorMessage: xmlValue(xml, 'errorMessage') || undefined,
     createdDate: xmlValue(xml, 'createdDate'),
     numberRecordsFailed: parseInt(xmlValue(xml, 'numberRecordsFailed') || '0', 10),
     numberRecordsProcessed: parseInt(xmlValue(xml, 'numberRecordsProcessed') || '0', 10),
