@@ -1,7 +1,7 @@
 {
   "name": "sf-bulk-analyzer",
   "description": "Analyze Bulk API V2 and V1 jobs for errors",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "author": "Bobby White",
   "bin": {
     "sf-bulk-analyzer": "bin/run.js"

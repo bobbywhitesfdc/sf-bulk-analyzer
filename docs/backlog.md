@@ -20,6 +20,17 @@ This is the only passive forensic method to determine which fields an ETL (or an
 
 Only one completed job per object is needed; the column schema is consistent across runs.
 
+> **CORRECTION (verified on FSCDEMO, 2026-06-20):** the "consistent across runs"
+> assumption does NOT hold. Different jobs against the same object can upload
+> different field sets (e.g. distinct ETL stages — one Account job loads
+> `Name,Agency_BP_Id__c,RecordType.Name`, another loads
+> `FirstName,LastName,MM_Member_Id__c,MM_Member_Id__pc,RecordType.Name`).
+> Item 1 ships dedup-by-most-recent (one GET per object), which is LOSSY.
+> For forensic completeness (and before Item 3 generates a permission set), the
+> **union of upload fields across all completed jobs per object** is the safer
+> input. Open decision: add a `--union` mode (one GET per job) vs. keep
+> most-recent as the default.
+
 ### Proposed UX
 
 ```
@@ -36,6 +47,8 @@ sf bulk analyze <jobId> --target-org myorg --fields
 
 Would print the field list alongside the failure summary.
 
+JSON representation would show the fields as a collection.
+
 ### Implementation notes Bulk V2
 
 - Endpoint only available for v2 ingest jobs (not v1 Classic, not queryAll)
@@ -49,6 +62,15 @@ Would print the field list alongside the failure summary.
 
 ### Bonus points
 - Header fields with dot notation are lookups by externalId
+  - **Exception — `RecordType.*`:** dot notation does NOT always mean external-id lookup.
+    `RecordType.Name` resolves `RecordTypeId` by matching the RecordType **Label** (the
+    `Name` field), NOT `DeveloperName` (DeveloperName is not indexed, so it can't back a
+    Bulk match). Effective resolution:
+    `SELECT Id FROM RecordType WHERE SobjectType = '<object>' AND Name = '<label value>'`
+    Caveat: labels are not guaranteed unique, so an ambiguous label can break the match.
+    Permission-side, record-type access is granted via `recordTypeVisibilities` keyed by
+    `Object.DeveloperName` — do not conflate the load-time match key (label) with the
+    permission key (DeveloperName).
   - Ex:  Object: Contact. Field: Account.MyExternalId__c
   	- Header:  FirstName,LastName,Account.MyExternalId__c
   	- Data:   "Bobby", "White", "ABC-01234"
@@ -65,4 +87,25 @@ Would print the field list alongside the failure summary.
   	- This is resolving the field Foo__c.Contact__c by matching the supplied value
   		- select Id from Contact Where MyExternalId__c = 'ABC-01234'
  
+ # Item 2 -- future planning for Schema.Describe
+ - Given that this is a tool for analyzing failures, it would be quite useful to be able to describe the schema for the scope of a load
+ - Scope of describe
+  - The object that is the target of the load
+  - All Fields directly included in the CSV header
+  - For any dot notation field, also include the fields it dereferences
+  - Ex:  Object: InsurancePolicy Field: NamedInsured.MyExternalId__c
+    - Header:  Name,NamedInsured.MyExternalId__c
+    - Fields:
+        - Target: NamedInsuredId
+          - Data Type: (Id lookup)
+          - Required: (yes)
+        - Source: Account.MyExternalId__c
+          - Data Type: Character
+          - Length: 10
+          - Required: (no)
+# Item 3 - Permissions
+- If we have the schema, we can look at OLS/FLS needed
+- If we know the needs, we could generate (or update) a permissionset
+
+
  

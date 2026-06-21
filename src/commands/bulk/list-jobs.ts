@@ -1,5 +1,8 @@
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
-import { BulkJobInfo, getJobInfo, listJobs } from '../../lib/bulkApiClient.js';
+import { BulkJobInfo, fetchUploadFields, getJobInfo, listJobs } from '../../lib/bulkApiClient.js';
+import { pooled } from '../../lib/pool.js';
+import { classifyUploadFields, formatUploadFields } from '../../lib/uploadFields.js';
+import { makeDescribeCache, resolveLookupTargets } from '../../lib/schemaResolver.js';
 
 const QUERY_OPERATIONS = new Set(['query', 'queryall']);
 
@@ -14,6 +17,7 @@ export default class BulkListJobs extends SfCommand<BulkJobInfo[]> {
     '$ sf bulk list-jobs --target-org myorg --object Contact',
     '$ sf bulk list-jobs --target-org myorg --job-type v2 --state JobComplete',
     '$ sf bulk list-jobs --target-org myorg --all-operations',
+    '$ sf bulk list-jobs --target-org myorg --fields',
     '$ sf bulk list-jobs --target-org myorg --json',
   ];
 
@@ -37,6 +41,10 @@ export default class BulkListJobs extends SfCommand<BulkJobInfo[]> {
     }),
     'with-metrics': Flags.boolean({
       summary: 'Fetch processed/failed record counts for each job (one extra API call per job).',
+      default: false,
+    }),
+    fields: Flags.boolean({
+      summary: 'Recover the upload field list per load (Bulk v1, and v2 JobComplete jobs).',
       default: false,
     }),
   };
@@ -75,6 +83,41 @@ export default class BulkListJobs extends SfCommand<BulkJobInfo[]> {
       }));
     }
 
+    if (flags.fields) {
+      // One fieldset per load — the same object can be loaded with different field
+      // sets in separate jobs, so do NOT dedup by object. One GET per eligible job.
+      const eligible = result.filter(
+        (j) => (j.apiVersion === 'v2' && j.state === 'JobComplete') || j.apiVersion === 'v1',
+      );
+      if (eligible.length > 0) {
+        this.spinner.start(`Recovering upload fields for ${eligible.length} load(s)`);
+        const fetched = await pooled(
+          eligible.map((j) => async () => {
+            try {
+              return [j.id, await fetchUploadFields(conn, j.id, j.apiVersion)] as [string, string[]];
+            } catch {
+              return [j.id, [] as string[]] as [string, string[]];
+            }
+          }),
+          10,
+        );
+        this.spinner.stop();
+        const byId = new Map(fetched);
+        // Resolve lookup targets only for JSON output; one describe per object (cached).
+        const resolveTargets = this.jsonEnabled();
+        const cache = makeDescribeCache();
+        result = await Promise.all(
+          result.map(async (j) => {
+            const headers = byId.get(j.id);
+            if (!headers) return j;
+            let classified = classifyUploadFields(headers);
+            if (resolveTargets) classified = await resolveLookupTargets(conn, j.object, classified, cache);
+            return { ...j, uploadFields: headers, uploadFieldsClassified: classified };
+          }),
+        );
+      }
+    }
+
     if (!this.jsonEnabled()) {
       if (result.length === 0) {
         this.log('No jobs match the specified filters.');
@@ -101,6 +144,19 @@ export default class BulkListJobs extends SfCommand<BulkJobInfo[]> {
           this.log('\n--- Failed Job Errors ---');
           for (const j of failedWithError) {
             this.log(`  ${j.id}: ${j.errorMessage}`);
+          }
+        }
+
+        if (flags.fields) {
+          this.log('\n--- Upload Fields (by load) ---');
+          const withFields = result.filter((j) => j.uploadFields);
+          if (withFields.length === 0) {
+            this.log('  No eligible jobs to recover fields from (v2 needs JobComplete).');
+          } else {
+            for (const j of withFields) {
+              this.log(`\n${j.id}  ${j.object}  (${j.apiVersion}, ${j.state})`);
+              for (const line of formatUploadFields(j.uploadFieldsClassified!)) this.log(line);
+            }
           }
         }
       }

@@ -1,5 +1,6 @@
 import { Connection } from '@salesforce/core';
-import { parseCsv } from './csvParser.js';
+import { parseCsv, splitCsvLine } from './csvParser.js';
+import { isResultColumn, UploadField } from './uploadFields.js';
 import { pooled } from './pool.js';
 
 export type ApiVersion = 'v1' | 'v2';
@@ -16,6 +17,10 @@ export interface BulkJobInfo {
   createdDate: string;
   numberRecordsFailed: number;
   numberRecordsProcessed: number;
+  /** Upload column list recovered from the load (raw header names). Populated on demand. */
+  uploadFields?: string[];
+  /** Same columns, structurally classified (direct / externalIdLookup / recordType). */
+  uploadFieldsClassified?: UploadField[];
 }
 
 export interface FailureRecord {
@@ -134,6 +139,85 @@ async function fetchCsvRaw(
   if (!res.ok) throw new Error(`CSV fetch failed: ${res.status} ${res.statusText} — ${url}`);
   const locator = res.headers.get('Sforce-Locator');
   return { text: await res.text(), locator };
+}
+
+/**
+ * Read only the first line of a CSV response, streaming the body and stopping at
+ * the first newline so we never download the full result set. Falls back to a
+ * full read if the runtime gives us no streamable body.
+ */
+async function fetchCsvHeaderLine(
+  conn: Connection,
+  url: string,
+  apiVersion: ApiVersion = 'v2',
+): Promise<string> {
+  const authHeaders = apiVersion === 'v1' ? v1AuthHeaders(conn) : v2AuthHeaders(conn);
+  const res = await fetch(url, { headers: { ...authHeaders, Accept: 'text/csv' } });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`CSV header fetch failed: ${res.status} ${res.statusText} — ${url} — ${body}`);
+  }
+  if (!res.body) {
+    const text = await res.text();
+    return (text.split(/\r?\n/)[0] ?? '').replace(/\r$/, '');
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (value) buf += decoder.decode(value, { stream: true });
+      const nl = buf.indexOf('\n');
+      if (nl >= 0) return buf.slice(0, nl).replace(/\r$/, '');
+      if (done) break;
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+  return buf.replace(/\r$/, '');
+}
+
+/**
+ * Recover the original upload column list for one job (one load).
+ *
+ *  - v2: read the successfulResults header (sf__Id, sf__Created, … then the
+ *    uploaded columns). Job must be JobComplete for results to exist.
+ *  - v1: read the first batch's submitted request CSV header. The request CSV is
+ *    the raw upload, so there are no sf__* result columns to strip.
+ *
+ * Either way the result columns are filtered out, leaving the uploaded columns
+ * verbatim (including dot-notation external-id and RecordType references).
+ */
+export async function fetchUploadFields(
+  conn: Connection,
+  jobId: string,
+  apiVersion: ApiVersion,
+): Promise<string[]> {
+  return apiVersion === 'v1'
+    ? fetchUploadFieldsV1(conn, jobId)
+    : fetchUploadFieldsV2(conn, jobId);
+}
+
+async function fetchUploadFieldsV2(conn: Connection, jobId: string): Promise<string[]> {
+  const url = `${conn.instanceUrl}/services/data/v${conn.version}/jobs/ingest/${jobId}/successfulResults`;
+  const headerLine = await fetchCsvHeaderLine(conn, url, 'v2');
+  if (!headerLine.trim()) return [];
+  return splitCsvLine(headerLine).filter((c) => !isResultColumn(c));
+}
+
+async function fetchUploadFieldsV1(conn: Connection, jobId: string): Promise<string[]> {
+  // No successfulResults for v1; the original upload is the batch /request payload.
+  const batchListUrl = `${conn.instanceUrl}/services/async/${conn.version}/job/${jobId}/batch`;
+  const batchListXml = await fetchV1Xml(conn, batchListUrl);
+  const batchIds = xmlBlocks(batchListXml, 'batchInfo')
+    .map((block) => xmlValue(block, 'id'))
+    .filter(Boolean);
+  if (batchIds.length === 0) return [];
+  const url = `${conn.instanceUrl}/services/async/${conn.version}/job/${jobId}/batch/${batchIds[0]}/request`;
+  const headerLine = await fetchCsvHeaderLine(conn, url, 'v1');
+  if (!headerLine.trim()) return [];
+  return splitCsvLine(headerLine).filter((c) => !isResultColumn(c));
 }
 
 async function fetchFailuresV2(

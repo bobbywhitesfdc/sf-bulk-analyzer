@@ -1,10 +1,12 @@
 import { Args } from '@oclif/core';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
-import { detectApiVersion, fetchFailures, getJobInfo } from '../../lib/bulkApiClient.js';
+import { detectApiVersion, fetchFailures, fetchUploadFields, getJobInfo } from '../../lib/bulkApiClient.js';
 import { loadClassifiers } from '../../lib/classifierLoader.js';
 import { buildClassifier } from '../../lib/errorClassifier.js';
 import { shouldSample, sample } from '../../lib/sampler.js';
 import { summarize, formatSummary } from '../../lib/summarizer.js';
+import { classifyUploadFields, formatUploadFields } from '../../lib/uploadFields.js';
+import { resolveLookupTargets } from '../../lib/schemaResolver.js';
 
 export default class BulkAnalyze extends SfCommand<object> {
   public static readonly summary = 'Analyze failures for a Bulk API job.';
@@ -13,6 +15,7 @@ export default class BulkAnalyze extends SfCommand<object> {
 
   public static readonly examples = [
     '$ sf bulk analyze 750xx0000000001 --target-org myorg',
+    '$ sf bulk analyze 750xx0000000001 --target-org myorg --fields',
     '$ sf bulk analyze 750xx0000000001 --target-org myorg --json',
     '$ sf bulk analyze 750xx0000000001 --target-org myorg --classifiers ./my-classifiers.yaml',
   ];
@@ -38,6 +41,10 @@ export default class BulkAnalyze extends SfCommand<object> {
     concurrency: Flags.integer({
       summary: 'Number of parallel batch workers for large jobs.',
       default: 15,
+    }),
+    fields: Flags.boolean({
+      summary: 'Recover and show the upload field list for the job (Bulk v1 and v2).',
+      default: false,
     }),
   };
 
@@ -78,10 +85,32 @@ export default class BulkAnalyze extends SfCommand<object> {
 
     const summary = summarize(records, doSample, classifyError);
 
-    if (!this.jsonEnabled()) {
-      this.log(formatSummary(summary, jobId, jobInfo));
+    let uploadFields: string[] | undefined;
+    if (flags.fields) {
+      try {
+        this.spinner.start('Recovering upload fields');
+        uploadFields = await fetchUploadFields(conn, jobId, apiVersion);
+        this.spinner.stop(`${uploadFields.length} field(s)`);
+      } catch (e) {
+        this.spinner.stop('failed');
+        this.warn(`Could not recover upload fields: ${(e as Error).message}`);
+      }
     }
 
-    return { jobId, apiVersion, jobInfo, summary };
+    let uploadFieldsClassified = uploadFields ? classifyUploadFields(uploadFields) : undefined;
+    // Resolve lookup targets only when the result is consumed as JSON (human output is bare).
+    if (uploadFieldsClassified && this.jsonEnabled()) {
+      uploadFieldsClassified = await resolveLookupTargets(conn, jobInfo.object, uploadFieldsClassified);
+    }
+
+    if (!this.jsonEnabled()) {
+      this.log(formatSummary(summary, jobId, jobInfo));
+      if (uploadFieldsClassified) {
+        this.log('\n--- Upload Fields ---');
+        for (const line of formatUploadFields(uploadFieldsClassified)) this.log(line);
+      }
+    }
+
+    return { jobId, apiVersion, jobInfo, summary, uploadFields, uploadFieldsClassified };
   }
 }

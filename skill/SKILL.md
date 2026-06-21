@@ -9,6 +9,9 @@ Use this skill when:
 - A user pastes a Slack thread URL referencing a Bulk API job failure
 - A code review or incident post-mortem needs a failure breakdown
 - The user says "analyze bulk job", "why did job X fail", or "bulk job errors"
+- The user asks **which fields a load/ETL writes** to an object, "what columns did this job upload",
+  "what does the ETL map for <object>", or wants to map lookups/external IDs used by a load
+  (use the `--fields` flag — see "Recovering upload fields" below)
 
 ## Inputs (accept any of these)
 
@@ -42,7 +45,9 @@ Use this skill when:
        "sampleSize": N,
        "level1": [{ "signature": "...", "count": N, "examples": ["..."] }],
        "level2": [{ "id": "...", "error": "..." }]
-     }
+     },
+     "uploadFields": ["..."],                // present only with --fields
+     "uploadFieldsClassified": [ /* ... */ ] // present only with --fields (see below)
    }
    ```
 4. **Produce a human-readable summary** (see format below).
@@ -83,6 +88,45 @@ Bulk job analysis for <job_id> (@<alias>):
 • Top error: <signature> (<count>)
 • Full breakdown: [paste Level 1 table]
 ```
+
+## Recovering upload fields (`--fields`)
+
+When the user wants to know **which fields a load wrote** (not why it failed), add `--fields`:
+
+```
+sf bulk analyze <job_id> --target-org <alias> --fields --json   # one job
+sf bulk list-jobs --target-org <alias> --fields --json          # every load, per job
+```
+
+This recovers the original upload CSV header — the only passive way to see which fields an
+ETL maps per object. Works for v1 and v2 jobs. **`list-jobs --fields` reports one fieldset per
+load**, so the same object loaded with different field sets shows up as multiple entries — do not
+assume one schema per object.
+
+With `--json`, each column appears in `uploadFieldsClassified`:
+
+```json
+{
+  "raw": "NameInsured.mm_member_id__c",
+  "kind": "externalIdLookup",
+  "relationshipName": "NameInsured",
+  "matchField": "mm_member_id__c",
+  "targetField": "NameInsuredId",
+  "targetObject": "Account",
+  "required": true
+}
+```
+
+- `kind`: `direct` | `externalIdLookup` | `recordType` (person-account `__pc` fields are `direct`).
+- For `externalIdLookup`/`recordType`, `targetField`/`targetObject`/`required` are resolved via a
+  describe — `targetObject` is the object on the other end of the lookup. These appear only in JSON
+  (the human output lists raw column names only).
+- `recordType` columns (e.g. `RecordType.Name`) resolve `RecordTypeId` by matching the record type
+  **Label**, not its DeveloperName.
+
+When summarizing for the user, lead with the object and its lookups: e.g.
+"This load writes `InsurancePolicy.NameInsuredId` (required lookup → **Account**) keyed on
+`Account.mm_member_id__c`, plus Name, PolicyName, …".
 
 ## Notes
 
