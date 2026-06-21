@@ -87,25 +87,51 @@ JSON representation would show the fields as a collection.
   	- This is resolving the field Foo__c.Contact__c by matching the supplied value
   		- select Id from Contact Where MyExternalId__c = 'ABC-01234'
  
- # Item 2 -- future planning for Schema.Describe
- - Given that this is a tool for analyzing failures, it would be quite useful to be able to describe the schema for the scope of a load
- - Scope of describe
-  - The object that is the target of the load
-  - All Fields directly included in the CSV header
-  - For any dot notation field, also include the fields it dereferences
-  - Ex:  Object: InsurancePolicy Field: NamedInsured.MyExternalId__c
-    - Header:  Name,NamedInsured.MyExternalId__c
-    - Fields:
-        - Target: NamedInsuredId
-          - Data Type: (Id lookup)
-          - Required: (yes)
-        - Source: Account.MyExternalId__c
-          - Data Type: Character
-          - Length: 10
-          - Required: (no)
-# Item 3 - Permissions
-- If we have the schema, we can look at OLS/FLS needed
-- If we know the needs, we could generate (or update) a permissionset
+ # Item 2 -- Targeted schema enrichment for permission analysis
+
+**Status (2026-06-21):** lookup-target resolution shipped in 0.2.0 — `--fields --json`
+already enriches dot-notation columns with `targetField` / `targetObject` / `required`
+via one cached describe per object.
+
+**Decision:** do NOT build a broad "describe the whole load schema" feature. The
+remaining work is a *surgical* enrichment of the existing `--fields` classified output,
+scoped to exactly what's needed to build a deployable permission set (see Item 3).
+The plugin already calls describe for lookup resolution, so adding a few fields per
+column is nearly free.
+
+Add to each `uploadFieldsClassified` entry:
+- `apiName` — the canonical field API name (correct casing). Headers arrive as
+  `agreement_key__c` or `NameInsured.mm_member_id__c`; permission-set XML needs the exact
+  `Object.Field`, so the resolved describe name is required.
+- `flsEligible` — describe `permissionable`. Fields that can't take FLS (Name,
+  required/master-detail, formula/read-only, system fields) must be SKIPPED or a permset
+  deploy fails. This is the single most important addition.
+- `type` — to spot formula/read-only/calculated fields (no Edit FLS possible).
+- (optional) `createable` / `updateable` — for upsert semantics.
+
+For `recordType` columns, also surface the object's `recordTypeInfos` (label → DeveloperName)
+so the consumer can map the label match key to the `recordTypeVisibilities` DeveloperName.
+Note: which record types are actually used lives in the data rows, not the header — so this
+can only enumerate candidates, not pick the exact ones.
+
+# Item 3 - Permissions (let Claude generate; plugin only informs)
+
+**Decision (2026-06-21):** do NOT generate permission-set metadata in the plugin.
+Permset XML generation is deterministic and trivial for an agent — once `--fields --json`
+carries the Item 2 enrichment (canonical names + FLS-eligibility + recordtype dev-names),
+Claude can author or update the `.permissionset-meta.xml` directly across all jobs.
+
+What a permset needs and where it comes from:
+- **OLS** (object Create/Read/Edit) — derivable today from `object` + `operation`
+  (upsert ⇒ Create+Read+Edit). No `--fields` required.
+- **FLS edit** on each written field — `apiName`, gated by `flsEligible` (Item 2).
+- **FLS read** on the referenced object's external-id match field — `targetObject` +
+  `matchField` (shipped).
+- **recordTypeVisibilities** — keyed by `Object.DeveloperName` (Item 2 `recordTypeInfos`).
+
+Caveat: this assumes an interactive (Claude-in-the-loop) flow. If headless/CI permset
+generation is ever wanted (no LLM), deterministic code generation regains its value and
+Item 3 would come back as a real command.
 
 
  
