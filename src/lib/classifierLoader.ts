@@ -1,8 +1,8 @@
-import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
-import { homedir } from 'node:os';
-import { fileURLToPath } from 'node:url';
 import { load as loadYaml } from 'js-yaml';
+import { existsSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export interface ClassifierPattern {
   match?: string;

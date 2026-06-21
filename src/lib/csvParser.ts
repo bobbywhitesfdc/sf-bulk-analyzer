@@ -10,13 +10,14 @@ export function parseCsv(csv: string): FailureRecord[] {
   return lines.slice(1).map((line) => {
     const cols = splitCsvLine(line);
     const fields: Record<string, string> = {};
-    headers.forEach((h, i) => {
+    for (const [i, h] of headers.entries()) {
       fields[h] = cols[i] ?? '';
-    });
+    }
+
     return {
-      id: idIdx >= 0 ? (cols[idIdx] ?? '') : '',
-      error: errIdx >= 0 ? (cols[errIdx] ?? '') : '',
+      error: errIdx === -1 ? '' : (cols[errIdx] ?? ''),
       fields,
+      id: idIdx === -1 ? '' : (cols[idIdx] ?? ''),
     };
   });
 }
@@ -41,6 +42,7 @@ export function splitCsvLine(line: string): string[] {
       cur += ch;
     }
   }
+
   result.push(cur);
   return result;
 }

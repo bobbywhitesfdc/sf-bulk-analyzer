@@ -12,15 +12,16 @@
  */
 
 import { Connection } from '@salesforce/core';
+
 import { UploadField } from './uploadFields.js';
 
 export interface FieldLite {
-  name: string;
-  type: string;
-  relationshipName?: string | null;
-  referenceTo?: string[] | null;
-  nillable: boolean;
   defaultedOnCreate: boolean;
+  name: string;
+  nillable: boolean;
+  referenceTo?: null | string[];
+  relationshipName?: null | string;
+  type: string;
 }
 
 /** relationshipName(lowercased) -> field, per object. Values are promises so concurrent callers share one describe. */
@@ -43,10 +44,12 @@ async function relationshipMap(
       for (const f of desc.fields as unknown as FieldLite[]) {
         if (f.relationshipName) map.set(f.relationshipName.toLowerCase(), f);
       }
+
       return map;
     });
     cache.set(key, pending);
   }
+
   return pending;
 }
 
@@ -58,12 +61,14 @@ export function enrichFields(fields: UploadField[], relMap: Map<string, FieldLit
     if (!field?.referenceTo || field.referenceTo.length === 0) return f;
     const targetObject =
       field.referenceTo.length === 1 ? field.referenceTo[0] : field.referenceTo.join(', ');
+    /* eslint-disable perfectionist/sort-objects -- key order is the documented JSON contract */
     return {
       ...f,
       targetField: field.name,
       targetObject,
       required: !field.nillable && !field.defaultedOnCreate,
     };
+    /* eslint-enable perfectionist/sort-objects */
   });
 }
 

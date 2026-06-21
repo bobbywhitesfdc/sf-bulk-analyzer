@@ -1,18 +1,17 @@
 import { SfCommand } from '@salesforce/sf-plugins-core';
-import { copyFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { copyFile, mkdir } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { homedir } from 'node:os';
 
 const SKILL_DEST = join(homedir(), '.claude', 'skills', 'sf-bulk-analyzer');
 
 export default class BulkInstallSkill extends SfCommand<{ installed: string }> {
-  public static readonly summary = 'Install the sf-bulk-analyzer Claude Code skill to ~/.claude/skills/.';
   public static readonly description =
     'Copies the bundled SKILL.md to ~/.claude/skills/sf-bulk-analyzer/ so Claude Code can use it as a skill.';
-
   public static readonly examples = ['$ sf bulk install-skill'];
+public static readonly summary = 'Install the sf-bulk-analyzer Claude Code skill to ~/.claude/skills/.';
 
   public async run(): Promise<{ installed: string }> {
     // Resolve the skill source relative to this package's installed location.

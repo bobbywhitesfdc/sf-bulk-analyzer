@@ -18,20 +18,20 @@
 export type UploadFieldKind = 'direct' | 'externalIdLookup' | 'recordType';
 
 export interface UploadField {
-  /** Original header column, verbatim. */
-  raw: string;
   kind: UploadFieldKind;
-  /** Relationship name before the dot (e.g. 'NameInsured', 'RecordType'). */
-  relationshipName?: string;
   /** Field after the dot. For externalIdLookup this is the external-id match field; for recordType it is the match field (typically 'Name'). */
   matchField?: string;
+  /** Original header column, verbatim. */
+  raw: string;
+  /** Relationship name before the dot (e.g. 'NameInsured', 'RecordType'). */
+  relationshipName?: string;
+  /** Whether that target field is required on the load object. */
+  required?: boolean;
   // --- Resolved from a describe (lookups/recordType only); see schemaResolver ---
   /** The actual lookup field this column populates, e.g. 'NameInsuredId'. */
   targetField?: string;
   /** The object on the other end of the lookup, e.g. 'Account' (joined if polymorphic). */
   targetObject?: string;
-  /** Whether that target field is required on the load object. */
-  required?: boolean;
 }
 
 /**
@@ -40,7 +40,7 @@ export interface UploadField {
  * legacy v1 loader to report the record that was inserted/updated. None reflect
  * the uploaded dataset, so they are stripped before classification.
  */
-const RESULT_COLUMNS = new Set(['sf__Id', 'sf__Created', 'sf__Error', 'sf__Unprocessed', 'Id']);
+const RESULT_COLUMNS = new Set(['Id', 'sf__Created', 'sf__Error', 'sf__Id', 'sf__Unprocessed']);
 
 export function isResultColumn(header: string): boolean {
   return RESULT_COLUMNS.has(header.trim());
@@ -52,17 +52,23 @@ export function classifyUploadField(header: string): UploadField {
   if (dot > 0) {
     const relationshipName = raw.slice(0, dot);
     const matchField = raw.slice(dot + 1);
+    // Key order below is the documented JSON contract — keep it logical, not alphabetical.
     if (relationshipName.toLowerCase() === 'recordtype') {
       // Matched by Label (Name), not DeveloperName — DeveloperName is not indexed.
+      // eslint-disable-next-line perfectionist/sort-objects
       return { raw, kind: 'recordType', relationshipName, matchField };
     }
+
+    // eslint-disable-next-line perfectionist/sort-objects
     return { raw, kind: 'externalIdLookup', relationshipName, matchField };
   }
+
+  // eslint-disable-next-line perfectionist/sort-objects
   return { raw, kind: 'direct' };
 }
 
 export function classifyUploadFields(headers: string[]): UploadField[] {
-  return headers.filter((h) => !isResultColumn(h)).map(classifyUploadField);
+  return headers.filter((h) => !isResultColumn(h)).map((h) => classifyUploadField(h));
 }
 
 /** One human-readable annotation per field, used by command output. */
@@ -71,11 +77,14 @@ export function annotateUploadField(f: UploadField): string {
     // RecordType matches by its Name (Label); external-id lookups match by the
     // named external-id field. Both read as "lookup → <relationship> by <field>".
     case 'externalIdLookup':
-    case 'recordType':
+    case 'recordType': {
       return `lookup → ${f.relationshipName} by ${f.matchField}`;
-    case 'direct':
-    default:
+    }
+
+    // 'direct' fields carry no annotation.
+    default: {
       return '';
+    }
   }
 }
 

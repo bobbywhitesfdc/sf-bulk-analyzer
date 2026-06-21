@@ -18,7 +18,7 @@ export function buildClassifier(entries: ClassifierEntry[]): (rawError: string) 
           if (!regex) return signature;
           const m = regex.exec(rawError);
           if (m) {
-            return signature.replace(/\{(\d+)\}/g, (_, i) => m[Number(i)] ?? '');
+            return signature.replaceAll(/\{(\d+)\}/g, (_, i) => m[Number(i)] ?? '');
           }
         }
       }

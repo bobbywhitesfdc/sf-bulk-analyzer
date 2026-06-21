@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+
 import { loadClassifiers } from '../../src/lib/classifierLoader.js';
 import { buildClassifier } from '../../src/lib/errorClassifier.js';
 

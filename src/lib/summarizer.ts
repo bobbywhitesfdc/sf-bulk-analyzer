@@ -1,17 +1,18 @@
+/* eslint-disable perfectionist/sort-objects -- key order of the emitted Summary / level1 / level2 objects is an intentional JSON output contract, not alphabetical */
 import { BulkJobInfo, FailureRecord } from './bulkApiClient.js';
 
 export interface SignatureGroup {
-  signature: string;
   count: number;
   examples: string[];
+  signature: string;
 }
 
 export interface Summary {
-  totalFailures: number;
+  level1: SignatureGroup[]; // grouped by normalized signature, desc by count
+  level2: Array<{ error: string; id: string; }>; // raw messages, top N
   sampled: boolean;
   sampleSize?: number;
-  level1: SignatureGroup[]; // grouped by normalized signature, desc by count
-  level2: Array<{ id: string; error: string }>; // raw messages, top N
+  totalFailures: number;
 }
 
 const MAX_LEVEL2_ROWS = 20;
@@ -47,27 +48,26 @@ export function summarize(
   };
 }
 
-export function formatSummary(summary: Summary, jobId: string, jobInfo?: Pick<BulkJobInfo, 'object' | 'operation' | 'externalIdFieldName' | 'state' | 'errorMessage'>): string {
+export function formatSummary(summary: Summary, jobId: string, jobInfo?: Pick<BulkJobInfo, 'errorMessage' | 'externalIdFieldName' | 'object' | 'operation' | 'state'>): string {
   const lines: string[] = [];
   lines.push(`=== Bulk Job ${jobId} — Failure Analysis ===`);
   if (jobInfo) {
     const upsertField = jobInfo.operation === 'upsert' && jobInfo.externalIdFieldName ? ` (${jobInfo.externalIdFieldName})` : '';
-    lines.push(`Object: ${jobInfo.object}    Operation: ${jobInfo.operation}${upsertField}`);
-    lines.push(`State: ${jobInfo.state}`);
+    lines.push(`Object: ${jobInfo.object}    Operation: ${jobInfo.operation}${upsertField}`, `State: ${jobInfo.state}`);
     if (jobInfo.errorMessage) {
       lines.push(`Job Error: ${jobInfo.errorMessage}`);
     }
   }
-  lines.push(`Total failures: ${summary.totalFailures}${summary.sampled ? ` (sampled ${summary.sampleSize})` : ''}`);
-  lines.push('');
-  lines.push('--- Level 1: By Error Signature ---');
+
+  lines.push(`Total failures: ${summary.totalFailures}${summary.sampled ? ` (sampled ${summary.sampleSize})` : ''}`, '', '--- Level 1: By Error Signature ---');
   for (const g of summary.level1) {
     lines.push(`  ${g.count.toString().padStart(6)}  ${g.signature}`);
   }
-  lines.push('');
-  lines.push(`--- Level 2: Sample of Raw Messages (first ${MAX_LEVEL2_ROWS}) ---`);
+
+  lines.push('', `--- Level 2: Sample of Raw Messages (first ${MAX_LEVEL2_ROWS}) ---`);
   for (const r of summary.level2) {
     lines.push(`  [${r.id}] ${r.error}`);
   }
+
   return lines.join('\n');
 }

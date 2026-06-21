@@ -1,9 +1,10 @@
 import { expect } from 'chai';
-import { shouldSample, sample } from '../../src/lib/sampler.js';
+
 import { FailureRecord } from '../../src/lib/bulkApiClient.js';
+import { sample, shouldSample } from '../../src/lib/sampler.js';
 
 function makeRecords(n: number): FailureRecord[] {
-  return Array.from({ length: n }, (_, i) => ({ id: `id${i}`, error: `err${i}`, fields: {} }));
+  return Array.from({ length: n }, (_, i) => ({ error: `err${i}`, fields: {}, id: `id${i}` }));
 }
 
 describe('shouldSample', () => {
@@ -12,7 +13,7 @@ describe('shouldSample', () => {
   });
 
   it('triggers when failure rate exceeds threshold', () => {
-    expect(shouldSample(9_000, 10_000, 80)).to.be.true;
+    expect(shouldSample(9000, 10_000, 80)).to.be.true;
   });
 
   it('does not trigger below threshold', () => {
@@ -35,6 +36,6 @@ describe('sample', () => {
     const records = makeRecords(10_000);
     const result = sample(records, 500);
     expect(result[0].id).to.equal('id0');
-    expect(parseInt(result[result.length - 1].id.slice(2), 10)).to.be.greaterThan(9_000);
+    expect(Number.parseInt(result.at(-1)!.id.slice(2), 10)).to.be.greaterThan(9000);
   });
 });

@@ -1,17 +1,18 @@
 import { expect } from 'chai';
+
+import { enrichFields, FieldLite } from '../../src/lib/schemaResolver.js';
 import {
+  annotateUploadField,
   classifyUploadField,
   classifyUploadFields,
   isResultColumn,
-  annotateUploadField,
 } from '../../src/lib/uploadFields.js';
-import { enrichFields, FieldLite } from '../../src/lib/schemaResolver.js';
 
 describe('classifyUploadField', () => {
   it('classifies a plain field as direct', () => {
     expect(classifyUploadField('MM_Member_Id__c')).to.deep.equal({
-      raw: 'MM_Member_Id__c',
       kind: 'direct',
+      raw: 'MM_Member_Id__c',
     });
   });
 
@@ -21,10 +22,10 @@ describe('classifyUploadField', () => {
 
   it('classifies dot notation as an external-id lookup', () => {
     expect(classifyUploadField('NameInsured.mm_member_id__c')).to.deep.equal({
-      raw: 'NameInsured.mm_member_id__c',
       kind: 'externalIdLookup',
-      relationshipName: 'NameInsured',
       matchField: 'mm_member_id__c',
+      raw: 'NameInsured.mm_member_id__c',
+      relationshipName: 'NameInsured',
     });
   });
 
@@ -48,6 +49,7 @@ describe('isResultColumn', () => {
       expect(isResultColumn(c), c).to.be.true;
     }
   });
+
   it('does not flag upload columns', () => {
     expect(isResultColumn('Name')).to.be.false;
   });
@@ -104,25 +106,25 @@ describe('classifyUploadFields (real FSCDEMO headers)', () => {
 describe('enrichFields (lookup target resolution)', () => {
   // Mirrors the real InsurancePolicy describe: NameInsured -> NameInsuredId -> Account (required).
   const relMap = new Map<string, FieldLite>([
-    ['nameinsured', { name: 'NameInsuredId', type: 'reference', relationshipName: 'NameInsured', referenceTo: ['Account'], nillable: false, defaultedOnCreate: false }],
-    ['recordtype', { name: 'RecordTypeId', type: 'reference', relationshipName: 'RecordType', referenceTo: ['RecordType'], nillable: false, defaultedOnCreate: true }],
+    ['nameinsured', { defaultedOnCreate: false, name: 'NameInsuredId', nillable: false, referenceTo: ['Account'], relationshipName: 'NameInsured', type: 'reference' }],
+    ['recordtype', { defaultedOnCreate: true, name: 'RecordTypeId', nillable: false, referenceTo: ['RecordType'], relationshipName: 'RecordType', type: 'reference' }],
   ]);
 
   it('resolves an external-id lookup to its target field/object and requiredness', () => {
     const [f] = enrichFields(classifyUploadFields(['NameInsured.mm_member_id__c']), relMap);
     expect(f).to.include({
       kind: 'externalIdLookup',
-      relationshipName: 'NameInsured',
       matchField: 'mm_member_id__c',
+      relationshipName: 'NameInsured',
+      required: true,
       targetField: 'NameInsuredId',
       targetObject: 'Account',
-      required: true,
     });
   });
 
   it('resolves recordType (defaulted-on-create => not required)', () => {
     const [f] = enrichFields(classifyUploadFields(['RecordType.Name']), relMap);
-    expect(f).to.include({ targetField: 'RecordTypeId', targetObject: 'RecordType', required: false });
+    expect(f).to.include({ required: false, targetField: 'RecordTypeId', targetObject: 'RecordType' });
   });
 
   it('leaves direct fields and unknown relationships untouched', () => {
@@ -136,11 +138,13 @@ describe('annotateUploadField', () => {
   it('annotates a record type field as a lookup by Name', () => {
     expect(annotateUploadField(classifyUploadField('RecordType.Name'))).to.equal('lookup → RecordType by Name');
   });
+
   it('annotates an external-id lookup by its match field', () => {
     expect(annotateUploadField(classifyUploadField('Account.Agency_BP_Id__c'))).to.equal(
       'lookup → Account by Agency_BP_Id__c',
     );
   });
+
   it('returns empty annotation for a direct field', () => {
     expect(annotateUploadField(classifyUploadField('Name'))).to.equal('');
   });

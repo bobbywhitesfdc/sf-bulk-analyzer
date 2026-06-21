@@ -6,7 +6,7 @@ export async function pooled<T>(
   tasks: Array<() => Promise<T>>,
   concurrency: number,
 ): Promise<T[]> {
-  const results: T[] = new Array(tasks.length);
+  const results: T[] = Array.from({length: tasks.length});
   let next = 0;
 
   async function worker(): Promise<void> {

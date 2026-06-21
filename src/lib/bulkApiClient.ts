@@ -1,22 +1,23 @@
 import { Connection } from '@salesforce/core';
+
 import { parseCsv, splitCsvLine } from './csvParser.js';
-import { isResultColumn, UploadField } from './uploadFields.js';
 import { pooled } from './pool.js';
+import { isResultColumn, UploadField } from './uploadFields.js';
 
 export type ApiVersion = 'v1' | 'v2';
 
 export interface BulkJobInfo {
-  id: string;
   apiVersion: ApiVersion;
-  jobType: string;        // 'V2Ingest' | 'Classic'
-  operation: string;      // 'insert' | 'upsert' | 'delete' | 'query' | 'queryAll' | ...
-  object: string;
-  externalIdFieldName?: string;
-  state: string;
-  errorMessage?: string;
   createdDate: string;
+  errorMessage?: string;
+  externalIdFieldName?: string;
+  id: string;
+  jobType: string;        // 'V2Ingest' | 'Classic'
   numberRecordsFailed: number;
   numberRecordsProcessed: number;
+  object: string;
+  operation: string;      // 'insert' | 'upsert' | 'delete' | 'query' | 'queryAll' | ...
+  state: string;
   /** Upload column list recovered from the load (raw header names). Populated on demand. */
   uploadFields?: string[];
   /** Same columns, structurally classified (direct / externalIdLookup / recordType). */
@@ -24,14 +25,14 @@ export interface BulkJobInfo {
 }
 
 export interface FailureRecord {
-  id: string;
   error: string;
   fields: Record<string, string>;
+  id: string;
 }
 
 export interface FetchOptions {
   concurrency?: number;            // worker pool size (default 15)
-  onProgress?: (fetched: number, total: number | null) => void;
+  onProgress?: (fetched: number, total: null | number) => void;
 }
 
 /**
@@ -48,6 +49,7 @@ export async function detectApiVersion(
   } catch {
     // 404 means v1 job
   }
+
   return 'v1';
 }
 
@@ -57,17 +59,19 @@ export async function getJobInfo(
   apiVersion: ApiVersion,
 ): Promise<BulkJobInfo> {
   type RawJob = {
-    id: string; jobType: string; operation: string; object: string;
-    state: string; errorMessage?: string; createdDate: string;
-    numberRecordsFailed: number; numberRecordsProcessed: number;
+    createdDate: string; errorMessage?: string; id: string; jobType: string;
+    numberRecordsFailed: number; numberRecordsProcessed: number; object: string;
+    operation: string; state: string;
   };
   if (apiVersion === 'v2') {
     const url = `${conn.instanceUrl}/services/data/v${conn.version}/jobs/ingest/${jobId}`;
     const data = await conn.requestGet<RawJob>(url);
     return { ...data, apiVersion: 'v2' };
   }
+
   const url = `${conn.instanceUrl}/services/async/${conn.version}/job/${jobId}`;
   const xml = await fetchV1Xml(conn, url);
+  /* eslint-disable perfectionist/sort-objects -- intentional output key order, mirrors the v2 jobInfo field order */
   return {
     id: xmlValue(xml, 'id'),
     jobType: 'Classic',
@@ -77,10 +81,11 @@ export async function getJobInfo(
     state: xmlValue(xml, 'state'),
     errorMessage: xmlValue(xml, 'errorMessage') || undefined,
     createdDate: xmlValue(xml, 'createdDate'),
-    numberRecordsFailed: parseInt(xmlValue(xml, 'numberRecordsFailed') || '0', 10),
-    numberRecordsProcessed: parseInt(xmlValue(xml, 'numberRecordsProcessed') || '0', 10),
+    numberRecordsFailed: Number.parseInt(xmlValue(xml, 'numberRecordsFailed') || '0', 10),
+    numberRecordsProcessed: Number.parseInt(xmlValue(xml, 'numberRecordsProcessed') || '0', 10),
     apiVersion: 'v1',
   };
+  /* eslint-enable perfectionist/sort-objects */
 }
 
 export async function fetchFailures(
@@ -92,6 +97,7 @@ export async function fetchFailures(
   if (apiVersion === 'v2') {
     return fetchFailuresV2(conn, jobId, opts);
   }
+
   return fetchFailuresV1(conn, jobId, opts);
 }
 
@@ -111,6 +117,7 @@ async function fetchV1Xml(conn: Connection, url: string): Promise<string> {
     const body = await res.text();
     throw new Error(`Bulk API v1 request failed: ${res.status} ${res.statusText} — ${body}`);
   }
+
   return res.text();
 }
 
@@ -122,7 +129,7 @@ function xmlValue(xml: string, tag: string): string {
 function xmlBlocks(xml: string, tag: string): string[] {
   const blocks: string[] = [];
   const re = new RegExp(`<${tag}>[\\s\\S]*?<\\/${tag}>`, 'g');
-  let m: RegExpExecArray | null;
+  let m: null | RegExpExecArray;
   while ((m = re.exec(xml)) !== null) blocks.push(m[0]);
   return blocks;
 }
@@ -131,14 +138,14 @@ async function fetchCsvRaw(
   conn: Connection,
   url: string,
   apiVersion: ApiVersion = 'v2',
-): Promise<{ text: string; locator: string | null }> {
+): Promise<{ locator: null | string; text: string; }> {
   const authHeaders = apiVersion === 'v1' ? v1AuthHeaders(conn) : v2AuthHeaders(conn);
   const res = await fetch(url, {
     headers: { ...authHeaders, Accept: 'text/csv' },
   });
   if (!res.ok) throw new Error(`CSV fetch failed: ${res.status} ${res.statusText} — ${url}`);
   const locator = res.headers.get('Sforce-Locator');
-  return { text: await res.text(), locator };
+  return { locator, text: await res.text() };
 }
 
 /**
@@ -157,24 +164,27 @@ async function fetchCsvHeaderLine(
     const body = await res.text();
     throw new Error(`CSV header fetch failed: ${res.status} ${res.statusText} — ${url} — ${body}`);
   }
+
   if (!res.body) {
     const text = await res.text();
     return (text.split(/\r?\n/)[0] ?? '').replace(/\r$/, '');
   }
+
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buf = '';
   try {
     for (;;) {
-      const { value, done } = await reader.read();
+      const { done, value } = await reader.read();
       if (value) buf += decoder.decode(value, { stream: true });
       const nl = buf.indexOf('\n');
-      if (nl >= 0) return buf.slice(0, nl).replace(/\r$/, '');
+      if (nl !== -1) return buf.slice(0, nl).replace(/\r$/, '');
       if (done) break;
     }
   } finally {
     await reader.cancel().catch(() => {});
   }
+
   return buf.replace(/\r$/, '');
 }
 
@@ -226,15 +236,14 @@ async function fetchFailuresV2(
   opts: FetchOptions,
 ): Promise<FailureRecord[]> {
   const base = `${conn.instanceUrl}/services/data/v${conn.version}/jobs/ingest/${jobId}/failedResults`;
-  const records: FailureRecord[] = [];
-  let locator: string | null = null;
+  let locator: null | string = null;
 
   // V2 pages are sequential — each locator comes from the prior response header.
   let allRecords: FailureRecord[] = [];
   do {
     const url = locator ? `${base}?locator=${encodeURIComponent(locator)}` : base;
-    const { text, locator: next } = await fetchCsvRaw(conn, url);
-    allRecords = allRecords.concat(parseCsv(text));
+    const { locator: next, text } = await fetchCsvRaw(conn, url);
+    allRecords = [...allRecords, ...parseCsv(text)];
     opts.onProgress?.(allRecords.length, null);
     locator = next === 'null' || !next ? null : next;
   } while (locator !== null);
@@ -257,14 +266,14 @@ async function fetchFailuresV1(
   const tasks = batches.map((batch) => async () => {
     const url = `${conn.instanceUrl}/services/async/${conn.version}/job/${jobId}/batch/${batch.id}/result`;
     const { text } = await fetchCsvRaw(conn, url, 'v1');
-    const rows = parseCsv(text).filter((r) => r.fields['Success'] === 'false');
+    const rows = parseCsv(text).filter((r) => r.fields.Success === 'false');
     fetched += rows.length;
     opts.onProgress?.(fetched, null);
     return rows;
   });
 
   const results = await pooled(tasks, concurrency);
-  return ([] as FailureRecord[]).concat(...results);
+  return results.flat();
 }
 
 export async function listJobs(conn: Connection): Promise<BulkJobInfo[]> {

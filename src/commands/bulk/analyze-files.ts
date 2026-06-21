@@ -1,44 +1,42 @@
 import { Args } from '@oclif/core';
-import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
+import { Flags, SfCommand } from '@salesforce/sf-plugins-core';
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+
 import { FailureRecord } from '../../lib/bulkApiClient.js';
 import { loadClassifiers } from '../../lib/classifierLoader.js';
-import { buildClassifier } from '../../lib/errorClassifier.js';
 import { parseCsv } from '../../lib/csvParser.js';
-import { shouldSample, sample } from '../../lib/sampler.js';
-import { summarize, formatSummary } from '../../lib/summarizer.js';
+import { buildClassifier } from '../../lib/errorClassifier.js';
+import { sample, shouldSample } from '../../lib/sampler.js';
+import { formatSummary, summarize } from '../../lib/summarizer.js';
 
 export default class BulkAnalyzeFiles extends SfCommand<object> {
-  public static readonly summary = 'Analyze locally downloaded Bulk API failure CSVs without an org connection.';
-
-  public static readonly examples = [
-    '$ sf bulk analyze-files ./bulk_analysis_750xx0000000001',
-    '$ sf bulk analyze-files ./bulk_analysis_750xx0000000001 --json',
-  ];
-
-  public static readonly flags = {
-    'sample-size': Flags.integer({
-      summary: 'Max records to include in sample.',
-      default: 500,
-    }),
-    'sample-threshold': Flags.integer({
-      summary: 'Failure % that triggers sampling.',
-      default: 80,
-    }),
-    classifiers: Flags.file({
-      summary: 'Path to a custom classifiers YAML file.',
-      default: undefined,
-    }),
-  };
-
   public static readonly args = {
     dir: Args.directory({ description: 'Directory containing failure CSV files.', required: true }),
   };
+public static readonly examples = [
+    '$ sf bulk analyze-files ./bulk_analysis_750xx0000000001',
+    '$ sf bulk analyze-files ./bulk_analysis_750xx0000000001 --json',
+  ];
+public static readonly flags = {
+    classifiers: Flags.file({
+      default: undefined,
+      summary: 'Path to a custom classifiers YAML file.',
+    }),
+    'sample-size': Flags.integer({
+      default: 500,
+      summary: 'Max records to include in sample.',
+    }),
+    'sample-threshold': Flags.integer({
+      default: 80,
+      summary: 'Failure % that triggers sampling.',
+    }),
+  };
+public static readonly summary = 'Analyze locally downloaded Bulk API failure CSVs without an org connection.';
 
   public async run(): Promise<object> {
     const { args, flags } = await this.parse(BulkAnalyzeFiles);
-    const dir = args.dir;
+    const {dir} = args;
     const classifyError = buildClassifier(loadClassifiers(flags.classifiers));
 
     const entries = await readdir(dir);

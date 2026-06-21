@@ -8,8 +8,9 @@ name: release and publish
 #
 # To release: bump `version` in package.json, then push to main.
 #
-# Note: tests run via mocha directly (not `npm test`) because the repo-wide lint
-# config is not yet satisfied; the release must not be gated on lint cleanup.
+# The release is gated on lint + tests: `npm test` runs mocha and then `npm run
+# lint` (the posttest hook). A lint or test failure aborts the release before
+# anything is published.
 
 on:
   push:
@@ -40,12 +41,12 @@ jobs:
             echo "new=true" >> "$GITHUB_OUTPUT"
             echo "tag=v$v" >> "$GITHUB_OUTPUT"
           fi
-      - name: Install, build, test
+      - name: Install, build, lint, test
         if: steps.check.outputs.new == 'true'
         run: |
           npm install
           npm run build
-          npx mocha --forbid-only "test/**/*.test.ts"
+          npm test
       - name: Publish to npm
         if: steps.check.outputs.new == 'true'
         env:

@@ -22,5 +22,6 @@ export function sample(records: FailureRecord[], size = DEFAULT_SAMPLE_SIZE): Fa
   for (let i = 0; i < size; i++) {
     result.push(records[Math.floor(i * step)]);
   }
+
   return result;
 }

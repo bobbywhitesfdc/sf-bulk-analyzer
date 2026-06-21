@@ -1,60 +1,58 @@
 import { Args } from '@oclif/core';
-import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
+import { Flags, SfCommand } from '@salesforce/sf-plugins-core';
+
 import { detectApiVersion, fetchFailures, fetchUploadFields, getJobInfo } from '../../lib/bulkApiClient.js';
 import { loadClassifiers } from '../../lib/classifierLoader.js';
 import { buildClassifier } from '../../lib/errorClassifier.js';
-import { shouldSample, sample } from '../../lib/sampler.js';
-import { summarize, formatSummary } from '../../lib/summarizer.js';
-import { classifyUploadFields, formatUploadFields } from '../../lib/uploadFields.js';
+import { sample, shouldSample } from '../../lib/sampler.js';
 import { resolveLookupTargets } from '../../lib/schemaResolver.js';
+import { formatSummary, summarize } from '../../lib/summarizer.js';
+import { classifyUploadFields, formatUploadFields } from '../../lib/uploadFields.js';
 
 export default class BulkAnalyze extends SfCommand<object> {
-  public static readonly summary = 'Analyze failures for a Bulk API job.';
+  public static readonly args = {
+    jobId: Args.string({ description: 'Bulk API job ID to analyze.', required: true }),
+  };
   public static readonly description =
     'Fetches failed records for a Bulk API v1 or v2 job and summarizes errors by normalized signature.';
-
-  public static readonly examples = [
+public static readonly examples = [
     '$ sf bulk analyze 750xx0000000001 --target-org myorg',
     '$ sf bulk analyze 750xx0000000001 --target-org myorg --fields',
     '$ sf bulk analyze 750xx0000000001 --target-org myorg --json',
     '$ sf bulk analyze 750xx0000000001 --target-org myorg --classifiers ./my-classifiers.yaml',
   ];
-
-  public static readonly flags = {
-    'target-org': Flags.requiredOrg({ summary: 'Org alias or username.', char: 'o' }),
-    'output-dir': Flags.directory({
-      summary: 'Write analysis files to this directory.',
-      default: undefined,
-    }),
-    'sample-size': Flags.integer({
-      summary: 'Max records to include in sample.',
-      default: 500,
-    }),
-    'sample-threshold': Flags.integer({
-      summary: 'Failure % of processed records that triggers sampling.',
-      default: 80,
-    }),
+public static readonly flags = {
     classifiers: Flags.file({
-      summary: 'Path to a custom classifiers YAML file.',
       default: undefined,
+      summary: 'Path to a custom classifiers YAML file.',
     }),
     concurrency: Flags.integer({
-      summary: 'Number of parallel batch workers for large jobs.',
       default: 15,
+      summary: 'Number of parallel batch workers for large jobs.',
     }),
     fields: Flags.boolean({
-      summary: 'Recover and show the upload field list for the job (Bulk v1 and v2).',
       default: false,
+      summary: 'Recover and show the upload field list for the job (Bulk v1 and v2).',
     }),
+    'output-dir': Flags.directory({
+      default: undefined,
+      summary: 'Write analysis files to this directory.',
+    }),
+    'sample-size': Flags.integer({
+      default: 500,
+      summary: 'Max records to include in sample.',
+    }),
+    'sample-threshold': Flags.integer({
+      default: 80,
+      summary: 'Failure % of processed records that triggers sampling.',
+    }),
+    'target-org': Flags.requiredOrg({ char: 'o', summary: 'Org alias or username.' }),
   };
-
-  public static readonly args = {
-    jobId: Args.string({ description: 'Bulk API job ID to analyze.', required: true }),
-  };
+public static readonly summary = 'Analyze failures for a Bulk API job.';
 
   public async run(): Promise<object> {
     const { args, flags } = await this.parse(BulkAnalyze);
-    const jobId = args.jobId;
+    const {jobId} = args;
     const conn = flags['target-org'].getConnection();
     const classifyError = buildClassifier(loadClassifiers(flags.classifiers));
 
@@ -91,9 +89,9 @@ export default class BulkAnalyze extends SfCommand<object> {
         this.spinner.start('Recovering upload fields');
         uploadFields = await fetchUploadFields(conn, jobId, apiVersion);
         this.spinner.stop(`${uploadFields.length} field(s)`);
-      } catch (e) {
+      } catch (error) {
         this.spinner.stop('failed');
-        this.warn(`Could not recover upload fields: ${(e as Error).message}`);
+        this.warn(`Could not recover upload fields: ${(error as Error).message}`);
       }
     }
 
@@ -111,6 +109,7 @@ export default class BulkAnalyze extends SfCommand<object> {
       }
     }
 
+    // eslint-disable-next-line perfectionist/sort-objects -- intentional output key order (job id first)
     return { jobId, apiVersion, jobInfo, summary, uploadFields, uploadFieldsClassified };
   }
 }

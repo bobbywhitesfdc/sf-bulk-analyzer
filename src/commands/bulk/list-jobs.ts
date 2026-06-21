@@ -1,16 +1,15 @@
-import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
+import { Flags, SfCommand } from '@salesforce/sf-plugins-core';
+
 import { BulkJobInfo, fetchUploadFields, getJobInfo, listJobs } from '../../lib/bulkApiClient.js';
 import { pooled } from '../../lib/pool.js';
-import { classifyUploadFields, formatUploadFields } from '../../lib/uploadFields.js';
 import { makeDescribeCache, resolveLookupTargets } from '../../lib/schemaResolver.js';
+import { classifyUploadFields, formatUploadFields } from '../../lib/uploadFields.js';
 
 const QUERY_OPERATIONS = new Set(['query', 'queryall']);
 
 export default class BulkListJobs extends SfCommand<BulkJobInfo[]> {
-  public static readonly summary = 'List Bulk API jobs for an org.';
   public static readonly description =
     'Lists Bulk API jobs. Query and queryAll operations are excluded by default — use --all-operations to include them.';
-
   public static readonly examples = [
     '$ sf bulk list-jobs --target-org myorg',
     '$ sf bulk list-jobs --target-org myorg --with-metrics',
@@ -20,34 +19,34 @@ export default class BulkListJobs extends SfCommand<BulkJobInfo[]> {
     '$ sf bulk list-jobs --target-org myorg --fields',
     '$ sf bulk list-jobs --target-org myorg --json',
   ];
-
-  public static readonly flags = {
-    'target-org': Flags.requiredOrg({ summary: 'Org alias or username.', char: 'o' }),
-    object: Flags.string({
-      summary: 'Filter by Salesforce object name (case-insensitive).',
-      char: 'b',
-    }),
-    'job-type': Flags.option({
-      summary: 'Filter by API version.',
-      options: ['v1', 'v2'] as const,
-    })(),
-    state: Flags.string({
-      summary: 'Filter by job state (e.g. JobComplete, Failed, Closed).',
-      char: 's',
-    }),
+public static readonly flags = {
     'all-operations': Flags.boolean({
+      default: false,
       summary: 'Include query and queryAll jobs (excluded by default).',
-      default: false,
-    }),
-    'with-metrics': Flags.boolean({
-      summary: 'Fetch processed/failed record counts for each job (one extra API call per job).',
-      default: false,
     }),
     fields: Flags.boolean({
-      summary: 'Recover the upload field list per load (Bulk v1, and v2 JobComplete jobs).',
       default: false,
+      summary: 'Recover the upload field list per load (Bulk v1, and v2 JobComplete jobs).',
+    }),
+    'job-type': Flags.option({
+      options: ['v1', 'v2'] as const,
+      summary: 'Filter by API version.',
+    })(),
+    object: Flags.string({
+      char: 'b',
+      summary: 'Filter by Salesforce object name (case-insensitive).',
+    }),
+    state: Flags.string({
+      char: 's',
+      summary: 'Filter by job state (e.g. JobComplete, Failed, Closed).',
+    }),
+    'target-org': Flags.requiredOrg({ char: 'o', summary: 'Org alias or username.' }),
+    'with-metrics': Flags.boolean({
+      default: false,
+      summary: 'Fetch processed/failed record counts for each job (one extra API call per job).',
     }),
   };
+public static readonly summary = 'List Bulk API jobs for an org.';
 
   public async run(): Promise<BulkJobInfo[]> {
     const { flags } = await this.parse(BulkListJobs);
@@ -77,9 +76,9 @@ export default class BulkListJobs extends SfCommand<BulkJobInfo[]> {
       this.spinner.stop();
       result = filtered.map((j, i) => ({
         ...j,
+        errorMessage: details[i]?.errorMessage ?? j.errorMessage,
         numberRecordsFailed: details[i]?.numberRecordsFailed ?? j.numberRecordsFailed,
         numberRecordsProcessed: details[i]?.numberRecordsProcessed ?? j.numberRecordsProcessed,
-        errorMessage: details[i]?.errorMessage ?? j.errorMessage,
       }));
     }
 
@@ -123,20 +122,23 @@ export default class BulkListJobs extends SfCommand<BulkJobInfo[]> {
         this.log('No jobs match the specified filters.');
       } else {
         const rows = result.map((j) => ({
-          id: j.id,
           date: j.createdDate?.slice(0, 10) ?? '',
-          type: j.apiVersion,
-          operation: j.operation,
+          failed: j.numberRecordsFailed === undefined || j.numberRecordsFailed === null ? '—' : String(j.numberRecordsFailed),
+          id: j.id,
           object: j.object,
+          operation: j.operation,
+          processed:
+            j.numberRecordsProcessed === undefined || j.numberRecordsProcessed === null
+              ? '—'
+              : String(j.numberRecordsProcessed),
           state: j.state,
-          failed: j.numberRecordsFailed != null ? String(j.numberRecordsFailed) : '—',
-          processed: j.numberRecordsProcessed != null ? String(j.numberRecordsProcessed) : '—',
+          type: j.apiVersion,
         }));
 
         if (flags['with-metrics']) {
-          this.table({ data: rows, columns: ['id', 'date', 'type', 'operation', 'object', 'state', 'failed', 'processed'] });
+          this.table({ columns: ['id', 'date', 'type', 'operation', 'object', 'state', 'failed', 'processed'], data: rows });
         } else {
-          this.table({ data: rows, columns: ['id', 'date', 'type', 'operation', 'object', 'state'] });
+          this.table({ columns: ['id', 'date', 'type', 'operation', 'object', 'state'], data: rows });
         }
 
         const failedWithError = result.filter((j) => j.state === 'Failed' && j.errorMessage);
@@ -147,22 +149,26 @@ export default class BulkListJobs extends SfCommand<BulkJobInfo[]> {
           }
         }
 
-        if (flags.fields) {
-          this.log('\n--- Upload Fields (by load) ---');
-          const withFields = result.filter((j) => j.uploadFields);
-          if (withFields.length === 0) {
-            this.log('  No eligible jobs to recover fields from (v2 needs JobComplete).');
-          } else {
-            for (const j of withFields) {
-              this.log(`\n${j.id}  ${j.object}  (${j.apiVersion}, ${j.state})`);
-              for (const line of formatUploadFields(j.uploadFieldsClassified!)) this.log(line);
-            }
-          }
-        }
+        if (flags.fields) this.logUploadFields(result);
       }
-      this.log(`\n${result.length} job(s)${all.length !== result.length ? ` (${all.length - result.length} filtered out)` : ''}`);
+
+      this.log(`\n${result.length} job(s)${all.length === result.length ? '' : ` (${all.length - result.length} filtered out)`}`);
     }
 
     return result;
+  }
+
+  private logUploadFields(result: BulkJobInfo[]): void {
+    this.log('\n--- Upload Fields (by load) ---');
+    const withFields = result.filter((j) => j.uploadFields);
+    if (withFields.length === 0) {
+      this.log('  No eligible jobs to recover fields from (v2 needs JobComplete).');
+      return;
+    }
+
+    for (const j of withFields) {
+      this.log(`\n${j.id}  ${j.object}  (${j.apiVersion}, ${j.state})`);
+      for (const line of formatUploadFields(j.uploadFieldsClassified!)) this.log(line);
+    }
   }
 }
