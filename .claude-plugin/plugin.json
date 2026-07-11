@@ -1,0 +1,8 @@
+{
+  "name": "sf-bulk-analyzer",
+  "description": "Orchestrates the `sf bulk` CLI to analyze Salesforce Bulk API V1/V2 job failures and recover ETL upload field mappings — removes the burden of remembering the commands and flags.",
+  "version": "0.2.0",
+  "author": { "name": "Bobby White" },
+  "homepage": "https://github.com/bobbywhitesfdc/sf-bulk-analyzer",
+  "license": "MIT"
+}

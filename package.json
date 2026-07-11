@@ -38,10 +38,11 @@
     "node": ">=18.0.0"
   },
   "files": [
+    "./.claude-plugin",
     "./bin",
     "./classifiers.yaml",
     "./dist",
-    "./skill",
+    "./skills",
     "./oclif.manifest.json"
   ],
   "homepage": "https://github.com/bobbywhitesfdc/sf-bulk-analyzer",
