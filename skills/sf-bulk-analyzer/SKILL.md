@@ -139,10 +139,10 @@ With `--json`, each column appears in `uploadFieldsClassified`:
 
 ```json
 {
-  "raw": "NameInsured.mm_member_id__c",
+  "raw": "NameInsured.ext_member_id__c",
   "kind": "externalIdLookup",
   "relationshipName": "NameInsured",
-  "matchField": "mm_member_id__c",
+  "matchField": "ext_member_id__c",
   "targetField": "NameInsuredId",
   "targetObject": "Account",
   "required": true
@@ -158,7 +158,7 @@ With `--json`, each column appears in `uploadFieldsClassified`:
 
 When summarizing for the user, lead with the object and its lookups: e.g.
 "This load writes `InsurancePolicy.NameInsuredId` (required lookup → **Account**) keyed on
-`Account.mm_member_id__c`, plus Name, PolicyName, …".
+`Account.ext_member_id__c`, plus Name, PolicyName, …".
 
 ## Notes
 
