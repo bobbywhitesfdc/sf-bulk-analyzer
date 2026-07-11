@@ -1,6 +1,38 @@
+---
+name: sf-bulk-analyzer
+description: Use when a user wants to know why a Salesforce Bulk API job failed, or which fields a load/ETL wrote to an object. Triggers on a Bulk API job ID, a Slack thread about a bulk job failure, phrases like "analyze bulk job", "why did job X fail", "bulk job errors", or "which fields did this load upload / what columns did the ETL map". Orchestrates the `sf bulk` CLI (analyze, analyze-files, list-jobs) and produces a structured failure summary or upload-field breakdown. Read-only — never modifies Salesforce data.
+metadata:
+  type: skill
+  version: "0.2.0"
+---
+
 # sf-bulk-analyzer skill
 
 Analyze Salesforce Bulk API job failures and produce a structured summary.
+
+This skill is the orchestration layer for the `sf-bulk-analyzer` CLI plugin: it removes the
+burden of remembering the `sf bulk` commands and their flags. The CLI does the heavy lifting
+(fetching jobs, sampling, classifying errors, resolving field mappings); the skill decides what
+to run, parses the JSON, and presents it.
+
+## Preflight — confirm the CLI plugin is installed
+
+This skill drives the `sf bulk` commands, which are provided by the **separate** `sf-bulk-analyzer`
+CLI plugin. Installing this Claude plugin does **not** install the CLI. Before the first analysis
+in a session, confirm the command exists:
+
+```
+sf bulk analyze --help
+```
+
+If that fails with "command not found" / "not installed", stop and tell the user to install the
+CLI plugin first, then retry:
+
+```
+sf plugins install sf-bulk-analyzer
+```
+
+Do not attempt to analyze a job until the `sf bulk` commands resolve.
 
 ## When to invoke
 
@@ -107,10 +139,10 @@ With `--json`, each column appears in `uploadFieldsClassified`:
 
 ```json
 {
-  "raw": "NameInsured.mm_member_id__c",
+  "raw": "NameInsured.ext_member_id__c",
   "kind": "externalIdLookup",
   "relationshipName": "NameInsured",
-  "matchField": "mm_member_id__c",
+  "matchField": "ext_member_id__c",
   "targetField": "NameInsuredId",
   "targetObject": "Account",
   "required": true
@@ -126,7 +158,7 @@ With `--json`, each column appears in `uploadFieldsClassified`:
 
 When summarizing for the user, lead with the object and its lookups: e.g.
 "This load writes `InsurancePolicy.NameInsuredId` (required lookup → **Account**) keyed on
-`Account.mm_member_id__c`, plus Name, PolicyName, …".
+`Account.ext_member_id__c`, plus Name, PolicyName, …".
 
 ## Notes
 

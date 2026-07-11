@@ -1,7 +1,7 @@
 {
   "name": "sf-bulk-analyzer",
   "description": "Analyze Bulk API V2 and V1 jobs for errors",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": "Bobby White",
   "bin": {
     "sf-bulk-analyzer": "bin/run.js"
@@ -38,10 +38,11 @@
     "node": ">=18.0.0"
   },
   "files": [
+    "./.claude-plugin",
     "./bin",
     "./classifiers.yaml",
     "./dist",
-    "./skill",
+    "./skills",
     "./oclif.manifest.json"
   ],
   "homepage": "https://github.com/bobbywhitesfdc/sf-bulk-analyzer",
