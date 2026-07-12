@@ -16,3 +16,6 @@ install.txt
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Generated analysis artifacts
+docs/
