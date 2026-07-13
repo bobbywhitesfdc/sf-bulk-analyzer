@@ -21,21 +21,23 @@ Verify:
 sf bulk --help
 ```
 
-## Claude Code Skill
+## Claude Code Plugin
 
-The plugin ships with a bundled [Claude Code](https://claude.ai/code) skill that lets Claude analyze bulk job failures on your behalf — resolving job IDs from Slack threads, running the analysis, and synthesizing a summary.
+This plugin ships as a [Claude Code plugin](https://claude.ai/code). Once installed, Claude can analyze bulk job failures on your behalf — resolving job IDs from Slack threads, running the analysis, and synthesizing a summary.
 
-Install the skill after installing the plugin:
+After installing the SF CLI plugin, register it with Claude Code by symlinking the package root into your Claude skills directory:
 
 ```sh-session
-sf bulk install-skill
+ln -sfn ~/.local/share/sf/node_modules/sf-bulk-analyzer ~/.claude/skills/sf-bulk-analyzer
 ```
 
-This copies `SKILL.md` to `~/.claude/skills/sf-bulk-analyzer/`. Restart Claude Code to activate it. Once active, you can say things like:
+Restart Claude Code to activate. Once active, you can say things like:
 
 - "Analyze bulk job 750dy00000ZlJW5 on INTQA"
 - "Why did this job fail?" (paste a Slack thread URL)
 - "List all failed bulk jobs on UAT from the last week"
+
+> **Note:** The `sf bulk install-skill` command is deprecated. It copies a static SKILL.md file rather than using the Claude plugin architecture. Use the symlink approach above instead.
 
 ## Usage
 
