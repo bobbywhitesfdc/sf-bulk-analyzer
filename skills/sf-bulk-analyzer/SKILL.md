@@ -49,7 +49,7 @@ Use this skill when:
 - The user says "analyze bulk job", "why did job X fail", or "bulk job errors"
 - The user asks **which fields a load/ETL writes** to an object, "what columns did this job upload",
   "what does the ETL map for <object>", or wants to map lookups/external IDs used by a load
-  (use the `--fields` flag — see "Recovering upload fields" below)
+  (use the `--fields` flag — see "Reverse engineering upload fields" below)
 
 ## Inputs (accept any of these)
 
@@ -127,7 +127,7 @@ Bulk job analysis for <job_id> (@<alias>):
 • Full breakdown: [paste Level 1 table]
 ```
 
-## Recovering upload fields (`--fields`)
+## Reverse engineering upload fields (`--fields`)
 
 When the user wants to know **which fields a load wrote** (not why it failed), add `--fields`:
 
@@ -136,7 +136,7 @@ sf bulk analyze <job_id> --target-org <alias> --fields --json   # one job
 sf bulk list-jobs --target-org <alias> --fields --json          # every load, per job
 ```
 
-This recovers the original upload CSV header — the only passive way to see which fields an
+This inspects the original upload CSV header to reverse engineer what was loaded — the only passive way to see which fields an
 ETL maps per object. Works for v1 and v2 jobs. **`list-jobs --fields` reports one fieldset per
 load**, so the same object loaded with different field sets shows up as multiple entries — do not
 assume one schema per object.

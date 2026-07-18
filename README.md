@@ -50,7 +50,7 @@ sf bulk list-jobs --target-org myorg --with-metrics
 sf bulk list-jobs --target-org myorg --object Producer --with-metrics
 sf bulk list-jobs --target-org myorg --job-type v2 --state JobComplete
 
-# Recover the upload field list each load wrote (see "Recovering upload fields" below)
+# Reverse engineer the upload field list each load wrote (see "Reverse engineering upload fields" below)
 sf bulk list-jobs --target-org myorg --fields
 ```
 
@@ -66,7 +66,7 @@ sf bulk analyze 750dy00000ZlJW5 --target-org myorg --json
 # Tune the worker pool for large V1 jobs (default 15)
 sf bulk analyze 750dy00000ZlJW5 --target-org myorg --concurrency 25
 
-# Also recover the upload field list this job wrote (see "Recovering upload fields" below)
+# Also reverse engineer the upload field list this job wrote (see "Reverse engineering upload fields" below)
 sf bulk analyze 750dy00000ZlJW5 --target-org myorg --fields
 ```
 
@@ -101,9 +101,9 @@ sf bulk analyze-files ./bulk_failures/
 
 Accepts directories containing v2 failed results CSVs (`sf__Id`, `sf__Error` columns) or v1 batch result CSVs (`Success`, `Error` columns).
 
-### Recovering upload fields (`--fields`)
+### Reverse engineering upload fields (`--fields`)
 
-`--fields` recovers the **list of fields a load actually wrote** — the original upload CSV header. This is often the only passive way to determine which fields an ETL (or any bulk ingest process) maps per object, without access to the source system, field history, or pipeline logs.
+`--fields` reverse engineers the **list of fields a load actually wrote** — the original upload CSV header. This is often the only passive way to determine which fields an ETL (or any bulk ingest process) maps per object, without access to the source system, field history, or pipeline logs.
 
 It works for both API versions:
 - **v2** reads the header of the `successfulResults` endpoint (job must be `JobComplete`).
@@ -204,7 +204,7 @@ FLAGS
   -o, --target-org=<value>        (required) Org alias or username.
       --classifiers=<value>       Path to a custom classifiers YAML file.
       --concurrency=<value>       [default: 15] Number of parallel batch workers for large jobs.
-      --fields                    Recover and show the upload field list for the job (Bulk v1 and v2).
+      --fields                    Inspect and show the upload field list for the job (Bulk v1 and v2).
       --output-dir=<value>        Write analysis files to this directory.
       --sample-size=<value>       [default: 500] Max records to include in sample.
       --sample-threshold=<value>  [default: 80] Failure % of processed records that triggers sampling.
@@ -273,7 +273,7 @@ FLAGS
   -o, --target-org=<value>  (required) Org alias or username.
   -s, --state=<value>       Filter by job state (e.g. JobComplete, Failed, Closed).
       --all-operations      Include query and queryAll jobs (excluded by default).
-      --fields              Recover the upload field list per load (Bulk v1, and v2 JobComplete jobs).
+      --fields              Inspect the upload field list per load (Bulk v1, and v2 JobComplete jobs).
       --job-type=<option>   Filter by API version.
                             <options: v1|v2>
       --with-metrics        Fetch processed/failed record counts for each job (one extra API call per job).

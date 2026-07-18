@@ -18,7 +18,7 @@ export interface BulkJobInfo {
   object: string;
   operation: string;      // 'insert' | 'upsert' | 'delete' | 'query' | 'queryAll' | ...
   state: string;
-  /** Upload column list recovered from the load (raw header names). Populated on demand. */
+  /** Upload column list reverse engineered from the load (raw header names). Populated on demand. */
   uploadFields?: string[];
   /** Same columns, structurally classified (direct / externalIdLookup / recordType). */
   uploadFieldsClassified?: UploadField[];
@@ -189,7 +189,7 @@ async function fetchCsvHeaderLine(
 }
 
 /**
- * Recover the original upload column list for one job (one load).
+ * Reverse engineer the original upload column list for one job (one load).
  *
  *  - v2: read the successfulResults header (sf__Id, sf__Created, … then the
  *    uploaded columns). Job must be JobComplete for results to exist.
