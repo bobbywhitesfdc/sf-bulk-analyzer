@@ -13,11 +13,11 @@ A Salesforce CLI plugin that analyzes Bulk API job failures and summarizes them 
 
 ### Claude Code skill (recommended)
 
-Add this repo as a plugin marketplace, then install the skill:
+Add the Salesforce Toolkit marketplace, then install the skill:
 
 ```sh-session
-/plugin marketplace add bobbywhitesfdc/sf-bulk-analyzer
-/plugin install sf-bulk-analyzer@sf-bulk-analyzer-marketplace
+/plugin marketplace add bobbywhitesfdc/salesforce-toolkit
+/plugin install sf-bulk-analyzer@salesforce-toolkit
 ```
 
 The skill drives the analysis for you — resolving job IDs from Slack threads, running the commands, and synthesizing a summary. On first use it checks for the `sf bulk` CLI plugin and, **with your confirmation**, installs it (`sf plugins trust allowlist add` + `sf plugins install`). Once active you can say things like:
