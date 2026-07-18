@@ -26,7 +26,7 @@ public static readonly flags = {
     }),
     fields: Flags.boolean({
       default: false,
-      summary: 'Recover the upload field list per load (Bulk v1, and v2 JobComplete jobs).',
+      summary: 'Inspect the upload field list per load (Bulk v1, and v2 JobComplete jobs).',
     }),
     'job-type': Flags.option({
       options: ['v1', 'v2'] as const,
@@ -89,7 +89,7 @@ public static readonly summary = 'List Bulk API jobs for an org.';
         (j) => (j.apiVersion === 'v2' && j.state === 'JobComplete') || j.apiVersion === 'v1',
       );
       if (eligible.length > 0) {
-        this.spinner.start(`Recovering upload fields for ${eligible.length} load(s)`);
+        this.spinner.start(`Reverse engineering upload fields for ${eligible.length} load(s)`);
         const fetched = await pooled(
           eligible.map((j) => async () => {
             try {
@@ -162,7 +162,7 @@ public static readonly summary = 'List Bulk API jobs for an org.';
     this.log('\n--- Upload Fields (by load) ---');
     const withFields = result.filter((j) => j.uploadFields);
     if (withFields.length === 0) {
-      this.log('  No eligible jobs to recover fields from (v2 needs JobComplete).');
+      this.log('  No eligible jobs to reverse engineer fields from (v2 needs JobComplete).');
       return;
     }
 

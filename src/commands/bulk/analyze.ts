@@ -32,7 +32,7 @@ public static readonly flags = {
     }),
     fields: Flags.boolean({
       default: false,
-      summary: 'Recover and show the upload field list for the job (Bulk v1 and v2).',
+      summary: 'Inspect and show the upload field list for the job (Bulk v1 and v2).',
     }),
     'output-dir': Flags.directory({
       default: undefined,
@@ -86,12 +86,12 @@ public static readonly summary = 'Analyze failures for a Bulk API job.';
     let uploadFields: string[] | undefined;
     if (flags.fields) {
       try {
-        this.spinner.start('Recovering upload fields');
+        this.spinner.start('Reverse engineering upload fields');
         uploadFields = await fetchUploadFields(conn, jobId, apiVersion);
         this.spinner.stop(`${uploadFields.length} field(s)`);
       } catch (error) {
         this.spinner.stop('failed');
-        this.warn(`Could not recover upload fields: ${(error as Error).message}`);
+        this.warn(`Could not reverse engineer upload fields: ${(error as Error).message}`);
       }
     }
 

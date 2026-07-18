@@ -93,6 +93,6 @@ export function annotateUploadField(f: UploadField): string {
  * names. Structural classification lives in the JSON (uploadFieldsClassified).
  */
 export function formatUploadFields(fields: UploadField[]): string[] {
-  if (fields.length === 0) return ['  (no upload fields recovered — job may have no successful records)'];
+  if (fields.length === 0) return ['  (no upload fields found — job may have no successful records)'];
   return fields.map((f) => `  ${f.raw}`);
 }
