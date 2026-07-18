@@ -7,37 +7,33 @@ A Salesforce CLI plugin that analyzes Bulk API job failures and summarizes them 
 [![Version](https://img.shields.io/npm/v/sf-bulk-analyzer.svg)](https://npmjs.org/package/sf-bulk-analyzer)
 [![Downloads/week](https://img.shields.io/npm/dw/sf-bulk-analyzer.svg)](https://npmjs.org/package/sf-bulk-analyzer)
 
-## Installation
+## Install
 
-This is a plugin for the [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli). Install it with:
+`sf-bulk-analyzer` ships two ways. Most users want the **Claude Code skill** — it drives the CLI for you and bootstraps the CLI plugin on first use.
 
-```sh-session
-sf plugins install sf-bulk-analyzer
-```
+### Claude Code skill (recommended)
 
-Verify:
+Add this repo as a plugin marketplace, then install the skill:
 
 ```sh-session
-sf bulk --help
+/plugin marketplace add bobbywhitesfdc/sf-bulk-analyzer
+/plugin install sf-bulk-analyzer@sf-bulk-analyzer-marketplace
 ```
 
-## Claude Code Plugin
-
-This plugin ships as a [Claude Code plugin](https://claude.ai/code). Once installed, Claude can analyze bulk job failures on your behalf — resolving job IDs from Slack threads, running the analysis, and synthesizing a summary.
-
-After installing the SF CLI plugin, register it with Claude Code by symlinking the package root into your Claude skills directory:
-
-```sh-session
-ln -sfn ~/.local/share/sf/node_modules/sf-bulk-analyzer ~/.claude/skills/sf-bulk-analyzer
-```
-
-Restart Claude Code to activate. Once active, you can say things like:
+The skill drives the analysis for you — resolving job IDs from Slack threads, running the commands, and synthesizing a summary. On first use it checks for the `sf bulk` CLI plugin and, **with your confirmation**, installs it (`sf plugins trust allowlist add` + `sf plugins install`). Once active you can say things like:
 
 - "Analyze bulk job 750dy00000ZlJW5 on INTQA"
 - "Why did this job fail?" (paste a Slack thread URL)
 - "List all failed bulk jobs on UAT from the last week"
 
-> **Note:** The `sf bulk install-skill` command is deprecated. It copies a static SKILL.md file rather than using the Claude plugin architecture. Use the symlink approach above instead.
+### SF CLI plugin (direct)
+
+To use the `sf bulk` commands yourself — or if you don't use Claude Code — install the [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli) plugin directly:
+
+```sh-session
+sf plugins install sf-bulk-analyzer
+sf bulk --help
+```
 
 ## Usage
 
@@ -189,7 +185,6 @@ sf bulk analyze 750dy00000ZlJW5 --target-org myorg --classifiers ./project-class
 <!-- commands -->
 * [`sf-bulk-analyzer bulk analyze JOBID`](#sf-bulk-analyzer-bulk-analyze-jobid)
 * [`sf-bulk-analyzer bulk analyze-files DIR`](#sf-bulk-analyzer-bulk-analyze-files-dir)
-* [`sf-bulk-analyzer bulk install-skill`](#sf-bulk-analyzer-bulk-install-skill)
 * [`sf-bulk-analyzer bulk list-jobs`](#sf-bulk-analyzer-bulk-list-jobs)
 * [`sf-bulk-analyzer help [COMMAND]`](#sf-bulk-analyzer-help-command)
 
@@ -199,8 +194,8 @@ Analyze failures for a Bulk API job.
 
 ```
 USAGE
-  $ sf-bulk-analyzer bulk analyze JOBID -o <value> [--json] [--flags-dir <value>] [--output-dir <value>]
-    [--sample-size <value>] [--sample-threshold <value>] [--classifiers <value>] [--concurrency <value>] [--fields]
+  $ sf-bulk-analyzer bulk analyze JOBID -o <value> [--json] [--flags-dir <value>] [--classifiers <value>]
+    [--concurrency <value>] [--fields] [--output-dir <value>] [--sample-size <value>] [--sample-threshold <value>]
 
 ARGUMENTS
   JOBID  Bulk API job ID to analyze.
@@ -233,7 +228,7 @@ EXAMPLES
   $ sf bulk analyze 750xx0000000001 --target-org myorg --classifiers ./my-classifiers.yaml
 ```
 
-_See code: [src/commands/bulk/analyze.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.2.0/src/commands/bulk/analyze.ts)_
+_See code: [src/commands/bulk/analyze.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.4.0/src/commands/bulk/analyze.ts)_
 
 ## `sf-bulk-analyzer bulk analyze-files DIR`
 
@@ -241,8 +236,8 @@ Analyze locally downloaded Bulk API failure CSVs without an org connection.
 
 ```
 USAGE
-  $ sf-bulk-analyzer bulk analyze-files DIR [--json] [--flags-dir <value>] [--sample-size <value>] [--sample-threshold
-    <value>] [--classifiers <value>]
+  $ sf-bulk-analyzer bulk analyze-files DIR [--json] [--flags-dir <value>] [--classifiers <value>] [--sample-size
+    <value>] [--sample-threshold <value>]
 
 ARGUMENTS
   DIR  Directory containing failure CSV files.
@@ -262,30 +257,7 @@ EXAMPLES
   $ sf bulk analyze-files ./bulk_analysis_750xx0000000001 --json
 ```
 
-_See code: [src/commands/bulk/analyze-files.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.2.0/src/commands/bulk/analyze-files.ts)_
-
-## `sf-bulk-analyzer bulk install-skill`
-
-Install the sf-bulk-analyzer Claude Code skill to ~/.claude/skills/.
-
-```
-USAGE
-  $ sf-bulk-analyzer bulk install-skill [--json] [--flags-dir <value>]
-
-GLOBAL FLAGS
-  --flags-dir=<value>  Import flag values from a directory.
-  --json               Format output as json.
-
-DESCRIPTION
-  Install the sf-bulk-analyzer Claude Code skill to ~/.claude/skills/.
-
-  Copies the bundled SKILL.md to ~/.claude/skills/sf-bulk-analyzer/ so Claude Code can use it as a skill.
-
-EXAMPLES
-  $ sf bulk install-skill
-```
-
-_See code: [src/commands/bulk/install-skill.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.2.0/src/commands/bulk/install-skill.ts)_
+_See code: [src/commands/bulk/analyze-files.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.4.0/src/commands/bulk/analyze-files.ts)_
 
 ## `sf-bulk-analyzer bulk list-jobs`
 
@@ -293,8 +265,8 @@ List Bulk API jobs for an org.
 
 ```
 USAGE
-  $ sf-bulk-analyzer bulk list-jobs -o <value> [--json] [--flags-dir <value>] [-b <value>] [--job-type v1|v2] [-s
-    <value>] [--all-operations] [--with-metrics] [--fields]
+  $ sf-bulk-analyzer bulk list-jobs -o <value> [--json] [--flags-dir <value>] [--all-operations] [--fields]
+    [--job-type v1|v2] [-b <value>] [-s <value>] [--with-metrics]
 
 FLAGS
   -b, --object=<value>      Filter by Salesforce object name (case-insensitive).
@@ -331,7 +303,7 @@ EXAMPLES
   $ sf bulk list-jobs --target-org myorg --json
 ```
 
-_See code: [src/commands/bulk/list-jobs.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.2.0/src/commands/bulk/list-jobs.ts)_
+_See code: [src/commands/bulk/list-jobs.ts](https://github.com/bobbywhitesfdc/sf-bulk-analyzer/blob/v0.4.0/src/commands/bulk/list-jobs.ts)_
 
 ## `sf-bulk-analyzer help [COMMAND]`
 

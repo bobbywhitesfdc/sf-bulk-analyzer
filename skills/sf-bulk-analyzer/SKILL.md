@@ -3,7 +3,7 @@ name: sf-bulk-analyzer
 description: Use when a user wants to know why a Salesforce Bulk API job failed, or which fields a load/ETL wrote to an object. Triggers on a Bulk API job ID, a Slack thread about a bulk job failure, phrases like "analyze bulk job", "why did job X fail", "bulk job errors", or "which fields did this load upload / what columns did the ETL map". Orchestrates the `sf bulk` CLI (analyze, analyze-files, list-jobs) and produces a structured failure summary or upload-field breakdown. Read-only — never modifies Salesforce data.
 metadata:
   type: skill
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # sf-bulk-analyzer skill
@@ -15,24 +15,30 @@ burden of remembering the `sf bulk` commands and their flags. The CLI does the h
 (fetching jobs, sampling, classifying errors, resolving field mappings); the skill decides what
 to run, parses the JSON, and presents it.
 
-## Preflight — confirm the CLI plugin is installed
+## Preflight — ensure the CLI plugin is installed (bootstrap on demand)
 
-This skill drives the `sf bulk` commands, which are provided by the **separate** `sf-bulk-analyzer`
-CLI plugin. Installing this Claude plugin does **not** install the CLI. Before the first analysis
-in a session, confirm the command exists:
-
-```
-sf bulk analyze --help
-```
-
-If that fails with "command not found" / "not installed", stop and tell the user to install the
-CLI plugin first, then retry:
+This skill drives the `sf bulk` commands, provided by the **separate** `sf-bulk-analyzer` SF CLI
+plugin. Installing this Claude plugin does **not** install the CLI — the skill bootstraps it on
+first use. Before the first analysis in a session, confirm the command resolves:
 
 ```
-sf plugins install sf-bulk-analyzer
+sf bulk --help
 ```
 
-Do not attempt to analyze a job until the `sf bulk` commands resolve.
+If that fails ("command not found" / "is not a sf command"), the CLI plugin is missing. Bootstrap
+it **with the user's explicit consent** — the first step adds an unsigned plugin to the SF CLI trust
+allowlist, so ask before running it:
+
+1. Ask the user to confirm you may install the `sf-bulk-analyzer` CLI plugin.
+2. On confirmation, run both commands:
+   ```
+   sf plugins trust allowlist add -n sf-bulk-analyzer
+   sf plugins install sf-bulk-analyzer
+   ```
+3. Re-run `sf bulk --help`. If it now resolves, proceed.
+
+Do not analyze a job until the `sf bulk` commands resolve. Never add to the trust allowlist without
+the user's confirmation.
 
 ## When to invoke
 
